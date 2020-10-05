@@ -53,7 +53,7 @@ def get_lines_stats(repos):
     stats = {'total': 0}
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
     _cleanup_repos(repos)
-    for repo in repos:
+    for i, repo in enumerate(repos):
         run(f"git clone {url_clone}/{owner}/{repo}".split())
         git_files = run(f"cd {repo} && git ls-files -- . {ignored} && cd ..",
                         shell=True, text=True, capture_output=True).stdout.splitlines()
@@ -64,7 +64,7 @@ def get_lines_stats(repos):
                               shell=True,
                               text=True,
                               capture_output=True).stdout.splitlines()[-1].split(" ")[-2])
-        print(f"{stats[repo]} total non-blank lines in repo {repo}")
+        print(f"{i + 1}/{len(repos)} -- {stats[repo]} total non-blank lines in repo {repo}")
         stats['total'] += stats[repo]
         run(f"rm -rf {repo}".split())
     return stats
