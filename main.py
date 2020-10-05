@@ -21,11 +21,12 @@ def get_repos():
         raise_rate_limited_exception()
 
 
-def get_commits_stats(repos):
+def get_commits_stats(repos, first_time_in_a_long_time=False):
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     # trigger GitHub's stats computing for each repo without looking at response code
-    for repo in repos:
-        requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
+    if first_time_in_a_long_time:
+        for repo in repos:
+            requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
 
     stats = {}
     for repo in repos:
@@ -34,14 +35,13 @@ def get_commits_stats(repos):
             if response.status_code == 403:
                 raise_rate_limited_exception()
             elif response.status_code == 200:
-                stats[repo] = response.json()
+                stats[repo] = sum([weekly['total'] for weekly in response.json()])
                 break
             # else status == 202, stats are being computed by GitHub
             # sleep a lot to prevent spamming requests and getting rate-limited
             sleep(120)
 
-    for repo in stats:
-        pass
+    return stats
 
 
 def _cleanup_repos(repos):
@@ -79,7 +79,7 @@ def print_all_stats(commits_stats, lines_stats):
 def main():
     repos = get_repos()
     # TODO: implement get_commits_stats
-    # commits_stats = get_commits_stats(repos)
+    commits_stats = get_commits_stats(repos, first_time_in_a_long_time=False)
     lines_stats = get_lines_stats(repos)
     print_all_stats(None, lines_stats)
 
