@@ -105,10 +105,13 @@ def get_lines_stats(repos, use_cloc):
 
 
 def print_all_stats(commits_stats, lines_stats, use_cloc):
-    commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
-                                for repo in commits_stats
-                                if repo != "total"])
-    commits_output += f"\nTotal commits of past year: {commits_stats['total']}"
+    if commits_stats is not None:
+        commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
+                                    for repo in commits_stats
+                                    if repo != "total"])
+        commits_output += f"\nTotal commits of past year: {commits_stats['total']}"
+    else:
+        commits_output = "No commits stats, as you've selected at the beginning."
 
     if use_cloc:
         lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
@@ -126,15 +129,16 @@ def print_all_stats(commits_stats, lines_stats, use_cloc):
                                   if repo != "total"])
         lines_output += f"\nTotal SLOC: {lines_stats['total']}"
 
-    print(f"{commits_output}\n\n{'*' * 42}\n\n{lines_output}")
+    print(f"\n\n{commits_output}\n\n{'*' * 42}\n\n{lines_output}")
 
 
 def main():
-    use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ")
-    use_cloc = True if use_cloc.lower() == "c" else False
+    use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
+    get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
+                        "their cache. y/N").lower() == "y"
 
     repos = get_repos()
-    commits_stats = get_commits_stats(repos, first_time_in_a_long_time=False)
+    commits_stats = get_commits_stats(repos, first_time_in_a_long_time=True) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc)
     print_all_stats(commits_stats, lines_stats, use_cloc)
 
