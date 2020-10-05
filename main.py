@@ -1,8 +1,6 @@
 import requests
 from time import sleep
 from subprocess import run
-from os import listdir
-from os.path import isfile, join
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
