@@ -28,7 +28,7 @@ def get_commits_stats(repos, first_time_in_a_long_time=False):
         for repo in repos:
             requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
 
-    stats = {}
+    stats = {'total': 0}
     for repo in repos:
         while True:
             response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
@@ -36,6 +36,7 @@ def get_commits_stats(repos, first_time_in_a_long_time=False):
                 raise_rate_limited_exception()
             elif response.status_code == 200:
                 stats[repo] = sum([weekly['total'] for weekly in response.json()])
+                stats['total'] += stats[repo]
                 break
             # else status == 202, stats are being computed by GitHub
             # sleep a lot to prevent spamming requests and getting rate-limited
