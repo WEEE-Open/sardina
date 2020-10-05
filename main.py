@@ -1,9 +1,13 @@
+import os
+
 import requests
 from time import sleep
+from subprocess import run, Popen, PIPE, check_output
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
 owner = "weee-open"
+ignored_files = ["*.txt", "LICENSE", ".gitignore"]
 
 
 def raise_rate_limited_exception():
@@ -12,7 +16,9 @@ def raise_rate_limited_exception():
 
 def get_repos():
     try:
-        return [repo['name'] for repo in requests.get(f"{url_api}/users/{owner}/repos").json()]
+        return [repo['name']
+                for repo in requests.get(f"{url_api}/users/{owner}/repos").json()
+                if not repo['archived'] and not repo['disabled']]
     except TypeError:
         raise_rate_limited_exception()
 
@@ -41,11 +47,21 @@ def get_commits_stats(repos):
 
 
 def get_lines_stats(repos):
-    pass
+    stats = {'total': 0}
+    ignored = " ".join([f"':!:{file}'" for file in ignored_files])
+    for repo in repos:
+        run(f"git clone {url_clone}/{owner}/{repo}".split())
+        stats[repo] = int(run(f"cd {repo} && wc -l $(git ls-files -- . {ignored}) && cd ..",
+                              shell=True,
+                              text=True,
+                              capture_output=True).stdout.splitlines()[-1].split(" ")[-2])
+        stats['total'] += stats[repo]
+        run(f"rm -rf {repo}".split())
+    return stats
 
 
 def print_all_stats(commits_stats, lines_stats):
-    pass
+    print(lines_stats)
 
 
 def main():
