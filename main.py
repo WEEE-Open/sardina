@@ -44,9 +44,15 @@ def get_commits_stats(repos):
         pass
 
 
+def _cleanup_repos(repos):
+    for repo in repos:
+        run(f"rm -rf {repo}".split())
+
+
 def get_lines_stats(repos):
     stats = {'total': 0}
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
+    _cleanup_repos(repos)
     for repo in repos:
         run(f"git clone {url_clone}/{owner}/{repo}".split())
         git_files = run(f"cd {repo} && git ls-files -- . {ignored} && cd ..",
