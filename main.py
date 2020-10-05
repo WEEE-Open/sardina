@@ -1,11 +1,13 @@
 import requests
 from time import sleep
 from subprocess import run
+from os import listdir
+from os.path import isfile, join
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
 owner = "weee-open"
-ignored_files = ["*.txt", "LICENSE", ".gitignore"]
+ignored_files = ["*.txt", "*.md", "LICENSE", ".gitignore"]
 
 
 def raise_rate_limited_exception():
@@ -49,6 +51,11 @@ def get_lines_stats(repos):
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
     for repo in repos:
         run(f"git clone {url_clone}/{owner}/{repo}".split())
+        git_files = run(f"cd {repo} && git ls-files -- . {ignored} && cd ..",
+                        shell=True, text=True, capture_output=True).stdout.splitlines()
+        # remove blank / whitespace-only lines
+        for file in git_files:
+            run(f"sed '/^\s*$/d' {repo}/{file} &> /dev/null", shell=True)
         stats[repo] = int(run(f"cd {repo} && wc -l $(git ls-files -- . {ignored}) && cd ..",
                               shell=True,
                               text=True,
