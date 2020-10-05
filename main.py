@@ -71,6 +71,7 @@ def get_lines_stats(repos):
 
 
 def print_all_stats(commits_stats, lines_stats):
+    # TODO: format output
     print(commits_stats)
     print(lines_stats)
 
