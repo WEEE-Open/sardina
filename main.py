@@ -76,9 +76,15 @@ def get_lines_stats(repos):
 
 
 def print_all_stats(commits_stats, lines_stats):
-    # TODO: format output
-    print(commits_stats)
-    print(lines_stats)
+    commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
+                                for repo in commits_stats])
+    commits_output += f"\nTotal commits of past year: {commits_stats['total']}"
+
+    lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
+                              for repo in lines_stats])
+    lines_output += f"Total LOC: {lines_stats['total']}"
+
+    print(f"{commits_output}\n{'*' * 42}\n{lines_output}")
 
 
 def main():
