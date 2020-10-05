@@ -83,10 +83,9 @@ def print_all_stats(commits_stats, lines_stats):
 
 def main():
     repos = get_repos()
-    # TODO: implement get_commits_stats
     commits_stats = get_commits_stats(repos, first_time_in_a_long_time=False)
     lines_stats = get_lines_stats(repos)
-    print_all_stats(None, lines_stats)
+    print_all_stats(commits_stats, lines_stats)
 
 
 if __name__ == "__main__":
