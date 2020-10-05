@@ -16,6 +16,10 @@ All non-archived and non-disabled public repos are taken into consideration.
 - `wc -l` to count lines
 - some 🐍 magic to contact GitHub's [APIs](https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics) (aka the `requests` library)
 
+or, optionally
+
+- `cloc` - a dedicated [utility](https://github.com/AlDanial/cloc) to count lines of code
+
 ## Why
 
 For our yearly report and recruitment presentation.  
