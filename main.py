@@ -1,8 +1,6 @@
-import os
-
 import requests
 from time import sleep
-from subprocess import run, Popen, PIPE, check_output
+from subprocess import run
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
@@ -61,11 +59,13 @@ def get_lines_stats(repos):
 
 
 def print_all_stats(commits_stats, lines_stats):
+    print(commits_stats)
     print(lines_stats)
 
 
 def main():
     repos = get_repos()
+    # TODO: implement get_commits_stats
     # commits_stats = get_commits_stats(repos)
     lines_stats = get_lines_stats(repos)
     print_all_stats(None, lines_stats)
