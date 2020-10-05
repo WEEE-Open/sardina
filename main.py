@@ -53,6 +53,7 @@ def get_lines_stats(repos):
                               shell=True,
                               text=True,
                               capture_output=True).stdout.splitlines()[-1].split(" ")[-2])
+        print(f"{stats[repo]} total non-blank lines in repo {repo}")
         stats['total'] += stats[repo]
         run(f"rm -rf {repo}".split())
     return stats
