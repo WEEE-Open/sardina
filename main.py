@@ -12,6 +12,11 @@ def raise_rate_limited_exception():
     raise Exception("You are getting rate-limited by GitHub's servers. Try again in a few minutes.") from None
 
 
+def raise_cloc_not_installed_exception():
+    raise Exception("cloc is not installed.\n"
+                    "Install it from https://github.com/AlDanial/cloc or use wc to count lines") from None
+
+
 def get_repos():
     try:
         return [repo['name']
@@ -40,6 +45,7 @@ def get_commits_stats(repos, first_time_in_a_long_time=False):
                 break
             # else status == 202, stats are being computed by GitHub
             # sleep a lot to prevent spamming requests and getting rate-limited
+            print(f"{repo} gave response {response.status_code}, sleeping 2 minutes before retrying...")
             sleep(120)
 
     return stats
@@ -50,49 +56,87 @@ def _cleanup_repos(repos):
         run(f"rm -rf {repo}".split())
 
 
-def get_lines_stats(repos):
-    stats = {'total': 0}
+def get_lines_stats(repos, use_cloc):
+    stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
     _cleanup_repos(repos)
 
     for i, repo in enumerate(repos):
         run(f"git clone {url_clone}/{owner}/{repo}".split())
 
-        git_files = run(f"cd {repo} && git ls-files -- . {ignored} && cd ..",
-                        shell=True, text=True, capture_output=True).stdout.splitlines()
-        # remove blank / whitespace-only lines
-        for file in git_files:
-            run(f"sed '/^\s*$/d' {repo}/{file} &> /dev/null", shell=True)
+        if use_cloc:
+            try:
+                cloc_out = run(f"cloc --csv {repo}",
+                               shell=True,
+                               text=True,
+                               capture_output=True).stdout.splitlines()[-1]
 
-        stats[repo] = int(run(f"cd {repo} && wc -l $(git ls-files -- . {ignored}) && cd ..",
-                              shell=True,
-                              text=True,
-                              capture_output=True).stdout.splitlines()[-1].split(" ")[-2])
+                stats[repo] = {
+                    'sloc': int(cloc_out.split(",")[-1]) or 0,
+                    'comments': int(cloc_out.split(",")[-2]) or 0,
+                    'blanks': int(cloc_out.split(",")[-3]) or 0,
+                }
 
-        print(f"{i + 1}/{len(repos)} -- {stats[repo]} total non-blank lines in repo {repo}")
-        stats['total'] += stats[repo]
+                stats['total']['sloc'] += stats[repo]['sloc']
+                stats['total']['all'] += stats[repo]['sloc'] + stats[repo]['comments'] + stats[repo]['blanks']
+
+            except IndexError:
+                raise_cloc_not_installed_exception()
+
+        else:
+            git_files = run(f"cd {repo} && git ls-files -- . {ignored} && cd ..",
+                            shell=True, text=True, capture_output=True).stdout.splitlines()
+            # remove blank / whitespace-only lines
+            for file in git_files:
+                run(f"sed '/^\s*$/d' {repo}/{file} &> /dev/null", shell=True)
+
+            stats[repo] = int(run(f"cd {repo} && wc -l $(git ls-files -- . {ignored}) && cd ..",
+                                  shell=True,
+                                  text=True,
+                                  capture_output=True).stdout.splitlines()[-1].split(" ")[-2])
+
+            stats['total'] += stats[repo]
+
+        print(f"{i + 1}/{len(repos)} -- {stats[repo]['sloc'] if use_cloc else stats[repo]} "
+              f"total non-blank lines in repo {repo}")
         run(f"rm -rf {repo}".split())
 
     return stats
 
 
-def print_all_stats(commits_stats, lines_stats):
+def print_all_stats(commits_stats, lines_stats, use_cloc):
     commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
-                                for repo in commits_stats])
+                                for repo in commits_stats
+                                if repo != "total"])
     commits_output += f"\nTotal commits of past year: {commits_stats['total']}"
 
-    lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
-                              for repo in lines_stats])
-    lines_output += f"\nTotal LOC: {lines_stats['total']}"
+    if use_cloc:
+        lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
+                                  f"{lines_stats[repo]['comments']} comments - "
+                                  f"{lines_stats[repo]['blanks']} blank lines - "
+                                  f"{lines_stats[repo]['sloc'] + lines_stats[repo]['comments'] + lines_stats[repo]['blanks']} total"
+                                  for repo in lines_stats
+                                  if repo != "total"])
+        lines_output += f"\nTotal SLOC: {lines_stats['total']['sloc']}" \
+                        f"\nTotal lines including comments and blanks: {lines_stats['total']['all']}"
 
-    print(f"{commits_output}\n{'*' * 42}\n{lines_output}")
+    else:
+        lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
+                                  for repo in lines_stats
+                                  if repo != "total"])
+        lines_output += f"\nTotal SLOC: {lines_stats['total']}"
+
+    print(f"{commits_output}\n\n{'*' * 42}\n\n{lines_output}")
 
 
 def main():
+    use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ")
+    use_cloc = True if use_cloc.lower() == "c" else False
+
     repos = get_repos()
     commits_stats = get_commits_stats(repos, first_time_in_a_long_time=False)
-    lines_stats = get_lines_stats(repos)
-    print_all_stats(commits_stats, lines_stats)
+    lines_stats = get_lines_stats(repos, use_cloc)
+    print_all_stats(commits_stats, lines_stats, use_cloc)
 
 
 if __name__ == "__main__":
