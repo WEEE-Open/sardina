@@ -83,7 +83,7 @@ def print_all_stats(commits_stats, lines_stats):
 
     lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
                               for repo in lines_stats])
-    lines_output += f"Total LOC: {lines_stats['total']}"
+    lines_output += f"\nTotal LOC: {lines_stats['total']}"
 
     print(f"{commits_output}\n{'*' * 42}\n{lines_output}")
 
