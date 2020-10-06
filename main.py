@@ -31,8 +31,10 @@ def get_repos():
 def get_commits_stats(repos):
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
+    already_checked_repos = []
+    trigger_stats = False
+
     for repo in repos:
-        already_checked_repos = []
         response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
         print(f"{repo} gave response {response.status_code}")
 
@@ -42,14 +44,14 @@ def get_commits_stats(repos):
             stats[repo] = sum([weekly['total'] for weekly in response.json()])
             stats['total'] += stats[repo]
             already_checked_repos.append(repo)
-
         else:  # status_code == 202, stats are being computed by GitHub
-            print("Triggering stats generation on GitHub's servers for remaining repos, "
-                  "re-run this script in >10 minutes to get their stats as well...")
-            # trigger GitHub's stats computing for each repo without looking at response code
-            for _repo in [r for r in repos if r not in already_checked_repos]:
-                requests.get(f"{url_api}/repos/{owner}/{_repo}/stats/commit_activity")
-            break
+            trigger_stats = True
+
+    if trigger_stats:
+        print("Triggering stats generation on GitHub's servers for remaining repos, "
+              "re-run this script in >10 minutes to get their stats as well...")
+        for repo in [r for r in repos if r not in already_checked_repos]:
+            requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
 
     print("\n")
     return stats
