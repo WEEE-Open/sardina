@@ -135,7 +135,7 @@ def print_all_stats(commits_stats, lines_stats, use_cloc):
 def main():
     use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
     get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
-                        "their cache. y/N").lower() == "y"
+                        "their cache. y/N ").lower() == "y"
 
     repos = get_repos()
     commits_stats = get_commits_stats(repos, first_time_in_a_long_time=True) if get_commits else None
