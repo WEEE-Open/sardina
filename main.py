@@ -27,28 +27,30 @@ def get_repos():
         raise_rate_limited_exception()
 
 
-def get_commits_stats(repos, first_time_in_a_long_time=False):
+def get_commits_stats(repos):
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
-    # trigger GitHub's stats computing for each repo without looking at response code
-    if first_time_in_a_long_time:
-        for repo in repos:
-            requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
-
     stats = {'total': 0}
     for repo in repos:
-        while True:
-            response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
-            if response.status_code == 403:
-                raise_rate_limited_exception()
-            elif response.status_code == 200:
-                stats[repo] = sum([weekly['total'] for weekly in response.json()])
-                stats['total'] += stats[repo]
-                break
-            # else status == 202, stats are being computed by GitHub
-            # sleep a lot to prevent spamming requests and getting rate-limited
-            print(f"{repo} gave response {response.status_code}, sleeping 2 minutes before retrying...")
-            sleep(120)
+        already_checked_repos = []
+        response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
+        print(f"{repo} gave response {response.status_code}")
 
+        if response.status_code == 403:
+            raise_rate_limited_exception()
+        elif response.status_code == 200:
+            stats[repo] = sum([weekly['total'] for weekly in response.json()])
+            stats['total'] += stats[repo]
+            already_checked_repos.append(repo)
+
+        else:  # status_code == 202, stats are being computed by GitHub
+            print("Triggering stats generation on GitHub's servers for remaining repos, "
+                  "re-run this script in >10 minutes to get their stats as well...")
+            # trigger GitHub's stats computing for each repo without looking at response code
+            for _repo in [r for r in repos if r not in already_checked_repos]:
+                requests.get(f"{url_api}/repos/{owner}/{_repo}/stats/commit_activity")
+            break
+
+    print("\n")
     return stats
 
 
@@ -139,7 +141,7 @@ def main():
                         "their cache. y/N ").lower() == "y"
 
     repos = get_repos()
-    commits_stats = get_commits_stats(repos, first_time_in_a_long_time=True) if get_commits else None
+    commits_stats = get_commits_stats(repos) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc)
     print_all_stats(commits_stats, lines_stats, use_cloc)
 
