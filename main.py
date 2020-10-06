@@ -2,10 +2,11 @@ import requests
 from time import sleep
 from subprocess import run
 
+from ignored_files import ignored_files
+
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
 owner = "weee-open"
-ignored_files = ["*.txt", "*.md", "LICENSE", ".gitignore"]
 
 
 def raise_rate_limited_exception():
