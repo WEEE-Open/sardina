@@ -19,7 +19,7 @@ def raise_cloc_not_installed_exception():
                     "Install it from https://github.com/AlDanial/cloc or use wc to count lines") from None
 
 
-def get_repos():
+def get_repos() -> list:
     try:
         return [repo['name']
                 for repo in requests.get(f"{url_api}/users/{owner}/repos").json()
@@ -28,7 +28,7 @@ def get_repos():
         raise_rate_limited_exception()
 
 
-def get_commits_stats(repos):
+def get_commits_stats(repos: list):
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
     already_checked_repos = []
@@ -57,12 +57,12 @@ def get_commits_stats(repos):
     return stats
 
 
-def _cleanup_repos(repos):
+def _cleanup_repos(repos: list):
     for repo in repos:
         run(f"rm -rf {repo}".split())
 
 
-def get_lines_stats(repos, use_cloc):
+def get_lines_stats(repos: list, use_cloc: bool):
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
     _cleanup_repos(repos)
@@ -110,7 +110,7 @@ def get_lines_stats(repos, use_cloc):
     return stats
 
 
-def print_all_stats(commits_stats, lines_stats, use_cloc):
+def print_all_stats(commits_stats: dict, lines_stats: dict, use_cloc: bool):
     if commits_stats is not None:
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
