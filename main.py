@@ -1,5 +1,5 @@
 import requests
-from time import sleep
+from datetime import datetime
 from subprocess import run
 
 from ignored_files import ignored_files
@@ -7,6 +7,7 @@ from ignored_files import ignored_files
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
 owner = "weee-open"
+output_file = "stats"
 
 
 def raise_rate_limited_exception():
@@ -132,7 +133,12 @@ def print_all_stats(commits_stats, lines_stats, use_cloc):
                                   if repo != "total"])
         lines_output += f"\nTotal SLOC: {lines_stats['total']}"
 
-    print(f"\n\n{commits_output}\n\n{'*' * 42}\n\n{lines_output}")
+    output = f"{commits_output}\n\n{'*' * 42}\n\n{lines_output}"
+    print(f"\n\n{output}")
+    with open(f"{output_file} {datetime.now()}.txt", 'w') as out:
+        out.write(f"Stats generated via https://github.com/weee-open/sardina\n"
+                  f"use_cloc={use_cloc}\n"
+                  f"\n{output}")
 
 
 def main():
