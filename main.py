@@ -28,7 +28,7 @@ def get_repos() -> list:
         raise_rate_limited_exception()
 
 
-def get_commits_stats(repos: list):
+def get_anonymous_commits_stats(repos: list):
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
     already_checked_repos = []
@@ -149,7 +149,7 @@ def main():
                         "their cache. y/N ").lower() == "y"
 
     repos = get_repos()
-    commits_stats = get_commits_stats(repos) if get_commits else None
+    commits_stats = get_anonymous_commits_stats(repos) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc)
     print_all_stats(commits_stats, lines_stats, use_cloc)
 
