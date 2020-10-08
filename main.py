@@ -32,6 +32,7 @@ def get_anonymous_commits_stats(repos: list) -> dict:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
 
+    print("Getting anonymous commits stats...")
     for repo in repos:
         response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
         print(f"{repo} gave response {response.status_code}")
@@ -51,6 +52,7 @@ def get_contributors_commits_stats(repos: list) -> dict:
     stats = {'total': {}, 'past_year': {}}
     unix_one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
 
+    print("Getting contributors commits stats...")
     for repo in repos:
         response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/contributors")
         print(f"{repo} gave response {response.status_code}")
@@ -93,6 +95,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
     _cleanup_repos(repos)
 
+    print("Getting SLOC stats...")
     for i, repo in enumerate(repos):
         run(f"git clone {url_clone}/{owner}/{repo}".split())
 
