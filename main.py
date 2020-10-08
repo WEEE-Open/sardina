@@ -136,7 +136,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     return stats
 
 
-def print_all_stats(commits_stats: dict, lines_stats: dict, use_cloc: bool):
+def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool):
     if commits_stats is not None:
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
@@ -144,6 +144,41 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, use_cloc: bool):
         commits_output += f"\nTotal commits of past year: {commits_stats['total']}"
     else:
         commits_output = "No commits stats, as you've selected at the beginning."
+
+    if contributors_stats is not None:
+        # I know using replace like this is really bad, I just don't want to spend years parsing the output
+        contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
+                                         .replace("'", "")
+                                         .replace(": {", "\n\t")
+                                         .replace("}, ", "\n\t")
+                                         .replace("}} ", "\n")
+                                         .replace("}", "")
+                                         .replace("total\n\t", "total:\n\t\t")
+                                         .replace("past_year\n\t", "past year:\n\t\t")
+                                         for repo in contributors_stats
+                                         if repo not in ["total", "past_year"]])
+
+        # sort by number of commits
+        contributors_stats['total'] = {k: v for k, v in sorted(contributors_stats['total'].items(),
+                                                               key=lambda item: item[1],
+                                                               reverse=True)}
+        contributors_stats['past_year'] = {k: v for k, v in sorted(contributors_stats['past_year'].items(),
+                                                                   key=lambda item: item[1],
+                                                                   reverse=True)}
+
+        contributors_output += f"\nTotal all time:\n\t{contributors_stats['total']}" \
+                               .replace("'", "") \
+                               .replace(", ", "\n\t") \
+                               .replace("{", "") \
+                               .replace("}", "")
+        contributors_output += f"\nPast year:\n\t{contributors_stats['past_year']}" \
+                               .replace("'", "") \
+                               .replace(", ", "\n\t") \
+                               .replace("{", "") \
+                               .replace("}", "")
+
+    else:
+        contributors_output = ""
 
     if use_cloc:
         lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
@@ -161,7 +196,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, use_cloc: bool):
                                   if repo != "total"])
         lines_output += f"\nTotal SLOC: {lines_stats['total']}"
 
-    output = f"{commits_output}\n\n{'*' * 42}\n\n{lines_output}"
+    output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
     with open(f"{output_file} {datetime.now()}.txt", 'w') as out:
         out.write(f"Stats generated via https://github.com/weee-open/sardina\n"
@@ -178,7 +213,7 @@ def main():
     commits_stats = get_anonymous_commits_stats(repos) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc)
-    print_all_stats(commits_stats, lines_stats, use_cloc)
+    print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc)
 
 
 if __name__ == "__main__":
