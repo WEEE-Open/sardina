@@ -31,8 +31,6 @@ def get_repos() -> list:
 def get_anonymous_commits_stats(repos: list) -> dict:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
-    already_checked_repos = []
-    trigger_stats = False
 
     for repo in repos:
         response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
@@ -43,15 +41,6 @@ def get_anonymous_commits_stats(repos: list) -> dict:
         elif response.status_code == 200:
             stats[repo] = sum([weekly['total'] for weekly in response.json()])
             stats['total'] += stats[repo]
-            already_checked_repos.append(repo)
-        else:  # status_code == 202, stats are being computed by GitHub
-            trigger_stats = True
-
-    if trigger_stats:
-        print("Triggering stats generation on GitHub's servers for remaining repos, "
-              "re-run this script in >10 minutes to get their stats as well...")
-        for repo in [r for r in repos if r not in already_checked_repos]:
-            requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
 
     print("\n")
     return stats
