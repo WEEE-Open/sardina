@@ -28,7 +28,7 @@ def get_repos() -> list:
         raise_rate_limited_exception()
 
 
-def get_anonymous_commits_stats(repos: list):
+def get_anonymous_commits_stats(repos: list) -> dict:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
     already_checked_repos = []
@@ -62,7 +62,7 @@ def _cleanup_repos(repos: list):
         run(f"rm -rf {repo}".split())
 
 
-def get_lines_stats(repos: list, use_cloc: bool):
+def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
     _cleanup_repos(repos)
