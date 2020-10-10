@@ -39,8 +39,9 @@ def get_repos() -> list:
             for page in range(2, (pages + 1)):
                 response = requests.get(f'{url}&page={page}')
                 repos += [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
-        
-        return repos
+
+        # ignore case when sorting list of repos to prevent uppercase letters to come before lowercase letters
+        return sorted(repos, key=str.casefold)
 
     except TypeError:
         raise_rate_limited_exception()
