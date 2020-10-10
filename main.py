@@ -23,25 +23,22 @@ def raise_cloc_not_installed_exception():
 def get_repos() -> list:
     url = f'{url_api}/{"orgs" if is_organization else "users"}/{owner}/repos?per_page=100'
     pages = 1
-    repos = []
 
     try:
         response = requests.get(url)
-        repolist = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
-        repos += repolist
+        repos = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
 
         # If the result page is only one page long, no link header is present
-        if 'link' in response.headers.keys():
+        if 'link' in response.headers:
             for link in response.headers['link'].split(','):
                 location, rel = link.split(';')
 
-                if(rel.strip() == 'rel="last"'):
+                if rel.strip() == 'rel="last"':
                     pages = int(re.compile('&page=(?P<page>[0-9]+)').search(location).group('page'))
         
             for page in range(2, (pages + 1)):
                 response = requests.get(f'{url}&page={page}')
-                repolist = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
-                repos += repolist
+                repos += [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
         
         return repos
 
