@@ -8,7 +8,7 @@ url_clone = "https://github.com"
 url_api = "https://api.github.com"
 owner = "weee-open"
 output_file = "stats"
-
+is_organization = True
 
 def raise_rate_limited_exception():
     raise Exception("You are getting rate-limited by GitHub's servers. Try again in a few minutes.") from None
@@ -22,7 +22,7 @@ def raise_cloc_not_installed_exception():
 def get_repos() -> list:
     try:
         return [repo['name']
-                for repo in requests.get(f"{url_api}/users/{owner}/repos").json()
+                for repo in requests.get(f"{url_api}/{'orgs' if is_organization else 'users'}/{owner}/repos").json()
                 if not repo['archived'] and not repo['disabled']]
     except TypeError:
         raise_rate_limited_exception()
