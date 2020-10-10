@@ -1,4 +1,5 @@
 import requests
+import re
 from datetime import datetime, timedelta
 from subprocess import run
 
@@ -8,7 +9,7 @@ url_clone = "https://github.com"
 url_api = "https://api.github.com"
 owner = "weee-open"
 output_file = "stats"
-
+is_organization = True
 
 def raise_rate_limited_exception():
     raise Exception("You are getting rate-limited by GitHub's servers. Try again in a few minutes.") from None
@@ -20,10 +21,30 @@ def raise_cloc_not_installed_exception():
 
 
 def get_repos() -> list:
+    url = f'{url_api}/{"orgs" if is_organization else "users"}/{owner}/repos?per_page=100'
+    pages = 1
+    repos = []
+
     try:
-        return [repo['name']
-                for repo in requests.get(f"{url_api}/users/{owner}/repos").json()
-                if not repo['archived'] and not repo['disabled']]
+        response = requests.get(url)
+        repolist = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
+        repos += repolist
+
+        # If the result page is only one page long, no link header is present
+        if 'link' in response.headers.keys():
+            for link in response.headers['link'].split(','):
+                location, rel = link.split(';')
+
+                if(rel.strip() == 'rel="last"'):
+                    pages = int(re.compile('&page=(?P<page>[0-9]+)').search(location).group('page'))
+        
+            for page in range(2, (pages + 1)):
+                response = requests.get(f'{url}&page={page}')
+                repolist = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
+                repos += repolist
+        
+        return repos
+
     except TypeError:
         raise_rate_limited_exception()
 
