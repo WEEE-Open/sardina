@@ -1,5 +1,7 @@
 import requests
 import re
+import os
+import matplotlib.pyplot as plot
 from datetime import datetime, timedelta
 from subprocess import run
 
@@ -11,6 +13,7 @@ url_api = "https://api.github.com"
 owner = "weee-open"
 output_file = "stats"
 is_organization = True
+generate_graphs = True
 
 
 def raise_rate_limited_exception():
@@ -161,9 +164,34 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
     return stats
 
+def generate_chart(data: dict, type: str):
+    if(type == 'pie'):
+        figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'))
+
+        # Remove the "total" key from the dictionary
+        # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
+        data.pop('total', 'nope')
+
+        keys = data.keys()
+        values = data.values()
+        
+        print(f'keys: {keys}\nvalue:{values}')
+
+        wedges, texts = axis.pie(values)
+        axis.legend(wedges, keys, title='Repositories', loc='center right')
+        axis.set_title('Total commits to all repositories in the last year')
+
+        return figure, axis
 
 def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool):
+    if(generate_graphs):
+        graph_dir = datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
+        os.mkdir(graph_dir)
+
     if commits_stats is not None:
+        f_yearly_commits, g_yearly_commits = generate_chart(dict(commits_stats), 'pie')
+        plot.savefig(f'{graph_dir}/total_yearly_commits.svg')
+
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
                                     if repo != "total"])
@@ -224,7 +252,9 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
-    with open(f"{output_file} {datetime.now()}.txt", 'w') as out:
+
+    output_path = f'{output_file} {datetime.now()}.txt' if not generate_graphs else f'{graph_dir}/stats.txt'
+    with open(output_path, 'w') as out:
         out.write(f"Stats generated via https://github.com/weee-open/sardina\n"
                   f"use_cloc={use_cloc}\n"
                   f"\n{output}")
@@ -234,6 +264,7 @@ def main():
     use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
     get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
                         "their cache. y/N ").lower() == "y"
+    generate_graphs = input("Do you want to generate graphs for the statistics? y/N ").lower() == 'y'
 
     header = {'Authorization': f"token {token}"} if token != "YOUR TOKEN HERE" else {}
 
