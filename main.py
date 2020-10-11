@@ -4,12 +4,14 @@ from datetime import datetime, timedelta
 from subprocess import run
 
 from ignored_files import ignored_files
+from token import token
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
 owner = "weee-open"
 output_file = "stats"
 is_organization = True
+
 
 def raise_rate_limited_exception():
     raise Exception("You are getting rate-limited by GitHub's servers. Try again in a few minutes.") from None
@@ -37,7 +39,7 @@ def get_repos(header: dict) -> list:
 
                 if rel.strip() == 'rel="last"':
                     pages = int(re.compile('&page=(?P<page>[0-9]+)').search(location).group('page'))
-        
+
             for page in range(2, (pages + 1)):
                 response = requests.get(f'{url}&page={page}', headers=header)
                 repos += [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
@@ -234,10 +236,7 @@ def main():
     get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
                         "their cache. y/N ").lower() == "y"
 
-    if input('Do you want to authenticate with OAuth2 (raises ratelimit from 60 to 5000 queries/h)? y/N ').lower() == 'y':
-        header = {'Authorization' : f'token {input("Enter your OAuth2 token: ")}'}
-    else:
-        header = {}
+    header = {'Authorization': f"token {token}"} if token != "YOUR TOKEN HERE" else {}
 
     repos = get_repos(header)
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
