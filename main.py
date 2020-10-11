@@ -56,7 +56,7 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
 
-    print("Getting anonymous commits stats...")
+    print("\nGetting anonymous commits stats...")
     for repo in repos:
         response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity", headers=header)
         print(f"{repo} gave response {response.status_code}")
