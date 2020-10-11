@@ -35,7 +35,7 @@ Also, we are curious nerds.
 
 First of all, generate a Personal Access Token (PAT) from your GitHub's [developer settings](https://github.com/settings/tokens) page.  
 The token only needs access to the APIs so you can leave all the permission boxes unticked and generate a token that can only access your public information and has no control over your account, but still benefit from the 5000 API requests per hour of authenticated requests.  
-Then, paste your new token in `token.py`.
+Then, paste your new token in `github_pat.py`.
 
 You can skip this step if you want and use the script without a PAT, but you will be subject to a limit of 60 API requests per hour, which means you could only fetch complete statistics for an account with at most 30 repos (we have 32 at the moment, so a PAT is highly recommended).
 

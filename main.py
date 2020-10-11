@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from subprocess import run
 
 from ignored_files import ignored_files
-from token import token
+from github_pat import token
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
