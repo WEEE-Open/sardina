@@ -20,12 +20,14 @@ def raise_cloc_not_installed_exception():
                     "Install it from https://github.com/AlDanial/cloc or use wc to count lines") from None
 
 
-def get_repos() -> list:
+def get_repos(header: dict) -> list:
     url = f'{url_api}/{"orgs" if is_organization else "users"}/{owner}/repos?per_page=100'
     pages = 1
 
+    # As of the time of writing, we don't *need* pagination as we have < 100 repos, but just for future proofing
+    # here is code that can handle n pages of repositories
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=header)
         repos = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
 
         # If the result page is only one page long, no link header is present
@@ -37,7 +39,7 @@ def get_repos() -> list:
                     pages = int(re.compile('&page=(?P<page>[0-9]+)').search(location).group('page'))
         
             for page in range(2, (pages + 1)):
-                response = requests.get(f'{url}&page={page}')
+                response = requests.get(f'{url}&page={page}', headers=header)
                 repos += [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
 
         # ignore case when sorting list of repos to prevent uppercase letters to come before lowercase letters
@@ -47,13 +49,14 @@ def get_repos() -> list:
         raise_rate_limited_exception()
 
 
-def get_anonymous_commits_stats(repos: list) -> dict:
+def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
+
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
 
     print("Getting anonymous commits stats...")
     for repo in repos:
-        response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity")
+        response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity", headers=header)
         print(f"{repo} gave response {response.status_code}")
 
         if response.status_code == 403:
@@ -66,14 +69,14 @@ def get_anonymous_commits_stats(repos: list) -> dict:
     return stats
 
 
-def get_contributors_commits_stats(repos: list) -> dict:
+def get_contributors_commits_stats(repos: list, header: dict) -> dict:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#get-all-contributor-commit-activity
     stats = {'total': {}, 'past_year': {}}
     unix_one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
 
     print("Getting contributors commits stats...")
     for repo in repos:
-        response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/contributors")
+        response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/contributors", headers=header)
         print(f"{repo} gave response {response.status_code}")
 
         if response.status_code == 403:
@@ -231,9 +234,14 @@ def main():
     get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
                         "their cache. y/N ").lower() == "y"
 
-    repos = get_repos()
-    commits_stats = get_anonymous_commits_stats(repos) if get_commits else None
-    contributors_stats = get_contributors_commits_stats(repos) if get_commits else None
+    if input('Do you want to authenticate with OAuth2 (raises ratelimit from 60 to 5000 queries/h)? y/N ').lower() == 'y':
+        header = {'Authorization' : f'token {input("Enter your OAuth2 token: ")}'}
+    else:
+        header = {}
+
+    repos = get_repos(header)
+    commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
+    contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc)
     print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc)
 

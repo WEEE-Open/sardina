@@ -33,6 +33,11 @@ Also, we are curious nerds.
 
 ## I want to run it now!
 
+First of all, generate a Personal Access Token (PAT) from your GitHub's [developer settings](https://github.com/settings/tokens) page.  
+The token only needs access to the APIs so you can leave all the permission boxes unticked and generate a token that can only access your public information and has no control over your account, but still benefit from the 5000 API requests per hour of authenticated requests.
+
+You can skip this passage if you want and use the script without PATs, but you will be subject to a limit of 60 API requests per hour, which means you could only fetch complete statistics for an account with at most 30 repos.
+
 `git clone https://github.com/weee-open/sardina`  
 `cd sardina`  
 optional: `python3 -m venv venv`  
