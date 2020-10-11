@@ -52,14 +52,13 @@ def get_repos(header: dict) -> list:
 
 
 def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
-
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
 
     print("\nGetting anonymous commits stats...")
-    for repo in repos:
+    for i, repo in enumerate(repos):
         response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity", headers=header)
-        print(f"{repo} gave response {response.status_code}")
+        print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
         if response.status_code == 403:
             raise_rate_limited_exception()
@@ -77,9 +76,9 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
     unix_one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
 
     print("Getting contributors commits stats...")
-    for repo in repos:
+    for i, repo in enumerate(repos):
         response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/contributors", headers=header)
-        print(f"{repo} gave response {response.status_code}")
+        print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
         if response.status_code == 403:
             raise_rate_limited_exception()
