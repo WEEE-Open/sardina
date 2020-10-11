@@ -24,6 +24,8 @@ def get_repos(header: dict) -> list:
     url = f'{url_api}/{"orgs" if is_organization else "users"}/{owner}/repos?per_page=100'
     pages = 1
 
+    # As of the time of writing, we don't *need* pagination as we have < 100 repos, but just for future proofing
+    # here is code that can handle n pages of repositories
     try:
         response = requests.get(url, headers=header)
         repos = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
