@@ -165,27 +165,27 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     return stats
 
 
-def generate_chart(data: dict, type: str, legend: str, title: str, path: str):
+def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str, path: str):
     # Remove summatory keys from the dictionary.
     # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
     data.pop('total', 'nope')
     data.pop('past_year', 'nope')
 
+    other = 0
+
+    for k in list(data):
+        if data[k] < minimum:
+            other += data.pop(k)
+
+    if other != 0:
+        data['other'] = other
+
+    keys = data.keys()
+    values = data.values()
+    count = len(values)
+
     if type == 'pie':
-        other = 0
         colors = []
-
-        for k in list(data):
-            if data[k] <= 10:
-                other += data.pop(k)
-
-        if other != 0:
-            data['other'] = other
-
-        keys = data.keys()
-        values = data.values()
-        count = len(values)
-
         figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'))
 
         # Set the color map and generate a properly sized color cycle
@@ -205,19 +205,12 @@ def generate_chart(data: dict, type: str, legend: str, title: str, path: str):
         plot.savefig(path, bbox_extra_artists=(legend,), bbox_inches='tight')
     
     elif type == 'bar':
-        values = data.values()
-        keys = data.keys()
-
-        for k in list(data):
-            if data[k] == 0:
-                data.pop(k)
-
-        # Don't bother creating a graph if only one person or nobody contributed
-        count = len(data)
         if count < 2:
             return
 
-        figure, axis = plot.subplots()
+        # Dimensions of an A4 paper in inches are 8.27x11.69
+        # Make the graph dimentions proportional to the number of columns. In this way, we have consistent bar heights.
+        figure, axis = plot.subplots(figsize=(12, 0.4 + 0.2*count), dpi=600)
 
         y = [i for i in range(count)]
 
@@ -232,6 +225,8 @@ def generate_chart(data: dict, type: str, legend: str, title: str, path: str):
             axis.text(v + int(v/10), i, str(v), va='center', color='black', fontweight='bold')
 
         plot.savefig(path, bbox_inches='tight')
+    
+    plot.close(figure)
 
 
 def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool):
@@ -241,7 +236,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if commits_stats is not None:
         if(generate_graphs):
-            generate_chart(dict({k:v for (k, v) in commits_stats.items() if v != 0}), 'pie', 'Repositories', 'Total commits to all repositories in the last year', f'{graph_dir}/yearly_commits_by_repo.svg')
+            generate_chart(dict(commits_stats), 10, 'pie', 'Repositories', 'Total commits to all repositories in the last year', f'{graph_dir}/yearly_commits_by_repo.svg')
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
@@ -253,14 +248,14 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if contributors_stats is not None:
         if(generate_graphs):
-            generate_chart(contributors_stats['total'], 'bar', 'Commits', 'Total commits from all members', f'{graph_dir}/total_commits.svg')
-            generate_chart(contributors_stats['past_year'], 'bar', 'Commits', 'Total commits from all members last year', f'{graph_dir}/last_year_commits.svg')
+            generate_chart(dict(contributors_stats['total']), 1, 'bar', 'Commits', 'Total commits from all members', f'{graph_dir}/total_commits.svg')
+            generate_chart(dict(contributors_stats['past_year']), 1, 'bar', 'Commits', 'Total commits from all members last year', f'{graph_dir}/last_year_commits.svg')
 
         for repo in contributors_stats:
             if repo not in ['total', 'past_year']:
                 os.mkdir(f'{graph_dir}/{repo}')
-                generate_chart(contributors_stats[repo]['total'], 'bar', 'Commits', 'Total commits from all contributors', f'{graph_dir}/{repo}/total_commits.svg')
-                generate_chart(contributors_stats[repo]['past_year'], 'bar', 'Commits', 'Total commits from all contributors last year', f'{graph_dir}/{repo}/past_year_commits.svg')
+                generate_chart(dict(contributors_stats[repo]['total']), 1, 'bar', 'Commits', 'Total commits from all contributors', f'{graph_dir}/{repo}/total_commits.svg')
+                generate_chart(dict(contributors_stats[repo]['past_year']), 1, 'bar', 'Commits', 'Total commits from all contributors last year', f'{graph_dir}/{repo}/past_year_commits.svg')
 
         # I know using replace like this is really bad, I just don't want to spend years parsing the output
         contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
@@ -278,6 +273,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         contributors_stats['total'] = {k: v for k, v in sorted(contributors_stats['total'].items(),
                                                                key=lambda item: item[1],
                                                                reverse=True)}
+
         contributors_stats['past_year'] = {k: v for k, v in sorted(contributors_stats['past_year'].items(),
                                                                    key=lambda item: item[1],
                                                                    reverse=True)}
