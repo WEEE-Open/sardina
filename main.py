@@ -164,6 +164,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
     return stats
 
+
 def generate_chart(data: dict, type: str, title: str, path: str):
     other = 0
 
@@ -185,16 +186,12 @@ def generate_chart(data: dict, type: str, title: str, path: str):
         color_dict = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
 
         colors = []
-        #result = []
 
         for cm in color_dict:
             cmap = plot.get_cmap(cm)
             colors += [cmap(i/color_dict[cm]) for i in range(color_dict[cm])]
 
         step = int(len(colors)/wedges_count)
-        #for i in range(wedges_count):
-        #        result.append(colors[i*step])
-
         axis.set_prop_cycle('color', [colors[i*step] for i in range(wedges_count)])
 
         # Remove the "total" key from the dictionary
@@ -207,6 +204,7 @@ def generate_chart(data: dict, type: str, title: str, path: str):
 
         plot.savefig(path, bbox_extra_artists=(legend,), bbox_inches='tight')
 
+
 def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool):
     if(generate_graphs):
         graph_dir = datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
@@ -214,17 +212,21 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if commits_stats is not None:
         if(generate_graphs):
-            generate_chart(dict({k:v for (k, v) in commits_stats.items() if v != 0}), 'pie', 'Total commits to all repositories in the last year',
-                            f'{graph_dir}/total_yearly_commits.svg')
+            generate_chart(dict({k:v for (k, v) in commits_stats.items() if v != 0}), 'pie',
+                            'Total commits to all repositories in the last year', f'{graph_dir}/yearly_commits_by_repo.svg')
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
                                     if repo != "total"])
+
         commits_output += f"\nTotal commits of past year: {commits_stats['total']}"
     else:
         commits_output = "No commits stats, as you've selected at the beginning."
 
     if contributors_stats is not None:
+        if(generate_graphs):
+            generate_chart(contributors_stats['total'], 'bar', 'Total commits from all members', f'{graph_dir}/total_commits.svg')
+
         # I know using replace like this is really bad, I just don't want to spend years parsing the output
         contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
                                          .replace("'", "")
@@ -259,21 +261,25 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     else:
         contributors_output = ""
     lines_output = ""
-#    if use_cloc:
-#        lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
-#                                  f"{lines_stats[repo]['comments']} comments - "
-#                                  f"{lines_stats[repo]['blanks']} blank lines - "
-#                                  f"{lines_stats[repo]['sloc'] + lines_stats[repo]['comments'] + lines_stats[repo]['blanks']} total"
-#                                  for repo in lines_stats
-#                                  if repo != "total"])
-#        lines_output += f"\nTotal SLOC: {lines_stats['total']['sloc']}" \
-#                        f"\nTotal lines including comments and blanks: {lines_stats['total']['all']}"
-#
-#    else:
-#        lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
-#                                  for repo in lines_stats
-#                                  if repo != "total"])
-#        lines_output += f"\nTotal SLOC: {lines_stats['total']}"
+
+    if lines_stats is not None:
+        if use_cloc:
+            lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
+                                      f"{lines_stats[repo]['comments']} comments - "
+                                      f"{lines_stats[repo]['blanks']} blank lines - "
+                                      f"{lines_stats[repo]['sloc'] + lines_stats[repo]['comments'] + lines_stats[repo]['blanks']} total"
+                                      for repo in lines_stats
+                                      if repo != "total"])
+            lines_output += f"\nTotal SLOC: {lines_stats['total']['sloc']}" \
+                            f"\nTotal lines including comments and blanks: {lines_stats['total']['all']}"
+
+        else:
+            lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
+                                      for repo in lines_stats
+                                      if repo != "total"])
+            lines_output += f"\nTotal SLOC: {lines_stats['total']}"
+    else:
+        lines_output = ""
 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
@@ -289,6 +295,7 @@ def main():
     use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
     get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
                         "their cache. y/N ").lower() == "y"
+    get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N").lower() == "y"
     generate_graphs = input("Do you want to generate graphs for the statistics? y/N ").lower() == 'y'
 
     header = {'Authorization': f"token {token}"} if token != "YOUR TOKEN HERE" else {}
@@ -296,8 +303,8 @@ def main():
     repos = get_repos(header)
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
-    #lines_stats = get_lines_stats(repos, use_cloc)
-    print_all_stats(commits_stats, None, contributors_stats, use_cloc)
+    lines_stats = get_lines_stats(repos, use_cloc) if get_lines else None
+    print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc)
 
 
 if __name__ == "__main__":
