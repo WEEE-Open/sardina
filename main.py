@@ -166,6 +166,11 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
 
 def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str, path: str):
+    # Order data dictionary by size of elements
+    ls = sorted(data.items(), key=lambda x: int(x[1]))
+    ls.reverse()
+    data = {k:v for k,v in ls}
+
     # Remove summatory keys from the dictionary.
     # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
     data.pop('total', 'nope')
@@ -198,7 +203,7 @@ def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str,
         step = int(len(colors)/count)
         axis.set_prop_cycle('color', [colors[i*step] for i in range(count)])
 
-        wedges, texts = axis.pie(values)
+        wedges, texts = axis.pie(values, counterclock=False, startangle=90)
         legend = axis.legend(wedges, keys, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
         axis.set_title(title)
 
