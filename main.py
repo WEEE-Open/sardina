@@ -214,15 +214,16 @@ def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str,
 
         y = [i for i in range(count)]
 
-        axis.barh(y, values, align='center')
+        bars = axis.barh(y, values, align='center')
         axis.set_yticks(y)
         axis.set_yticklabels(keys)
         axis.invert_yaxis()
         axis.set_xlabel(legend)
         axis.set_title(title)
 
-        for i, v in enumerate(values):
-            axis.text(v + int(v/10), i, str(v), va='center', color='black', fontweight='bold')
+        for bar in bars:
+            width = bar.get_width()
+            axis.annotate(str(width), xy=(width, bar.get_y() + bar.get_height() / 2), xytext=(3,0), textcoords='offset points', ha='left', va='center')
 
         plot.savefig(path, bbox_inches='tight')
     
