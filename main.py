@@ -165,44 +165,73 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     return stats
 
 
-def generate_chart(data: dict, type: str, title: str, path: str):
-    other = 0
+def generate_chart(data: dict, type: str, legend: str, title: str, path: str):
+    # Remove summatory keys from the dictionary.
+    # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
+    data.pop('total', 'nope')
+    data.pop('past_year', 'nope')
 
-    for k in list(data):
-        if data[k] <= 10:
-            other += data.pop(k)
-
-    if other != 0:
-        data['other'] = other
-    
-    keys = data.keys()
-    values = data.values()
-
-    if(type == 'pie'):
-        figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'))
-        
-        # Set the color map and generate a properly sized color cycle
-        wedges_count = len(values)
-        color_dict = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
-
+    if type == 'pie':
+        other = 0
         colors = []
 
-        for cm in color_dict:
+        for k in list(data):
+            if data[k] <= 10:
+                other += data.pop(k)
+
+        if other != 0:
+            data['other'] = other
+
+        keys = data.keys()
+        values = data.values()
+        count = len(values)
+
+        figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'))
+
+        # Set the color map and generate a properly sized color cycle
+        colormaps = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
+
+        for cm in colormaps:
             cmap = plot.get_cmap(cm)
-            colors += [cmap(i/color_dict[cm]) for i in range(color_dict[cm])]
+            colors += [cmap(i/colormaps[cm]) for i in range(colormaps[cm])]
 
-        step = int(len(colors)/wedges_count)
-        axis.set_prop_cycle('color', [colors[i*step] for i in range(wedges_count)])
-
-        # Remove the "total" key from the dictionary
-        # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
-        data.pop('total', 'nope')
+        step = int(len(colors)/count)
+        axis.set_prop_cycle('color', [colors[i*step] for i in range(count)])
 
         wedges, texts = axis.pie(values)
-        legend = axis.legend(wedges, keys, title='Repositories', bbox_to_anchor=(1.01, 1), loc='upper left')
+        legend = axis.legend(wedges, keys, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
         axis.set_title(title)
 
         plot.savefig(path, bbox_extra_artists=(legend,), bbox_inches='tight')
+    
+    elif type == 'bar':
+        values = data.values()
+        keys = data.keys()
+
+        for k in list(data):
+            if data[k] == 0:
+                data.pop(k)
+
+        # Don't bother creating a graph if only one person or nobody contributed
+        count = len(data)
+        if count < 2:
+            return
+
+        figure, axis = plot.subplots()
+
+        y = [i for i in range(count)]
+
+        axis.barh(y, values, align='center')
+        axis.set_yticks(y)
+        axis.set_yticklabels(keys)
+        axis.invert_yaxis()
+        axis.set_xlabel(legend)
+        axis.set_title(title)
+
+        for i, v in enumerate(values):
+            axis.text(v + int(v/10), i, str(v), va='center', color='black', fontweight='bold')
+
+        plot.savefig(path, bbox_inches='tight')
 
 
 def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool):
@@ -212,8 +241,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if commits_stats is not None:
         if(generate_graphs):
-            generate_chart(dict({k:v for (k, v) in commits_stats.items() if v != 0}), 'pie',
-                            'Total commits to all repositories in the last year', f'{graph_dir}/yearly_commits_by_repo.svg')
+            generate_chart(dict({k:v for (k, v) in commits_stats.items() if v != 0}), 'pie', 'Repositories', 'Total commits to all repositories in the last year', f'{graph_dir}/yearly_commits_by_repo.svg')
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
@@ -225,7 +253,14 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if contributors_stats is not None:
         if(generate_graphs):
-            generate_chart(contributors_stats['total'], 'bar', 'Total commits from all members', f'{graph_dir}/total_commits.svg')
+            generate_chart(contributors_stats['total'], 'bar', 'Commits', 'Total commits from all members', f'{graph_dir}/total_commits.svg')
+            generate_chart(contributors_stats['past_year'], 'bar', 'Commits', 'Total commits from all members last year', f'{graph_dir}/last_year_commits.svg')
+
+        for repo in contributors_stats:
+            if repo not in ['total', 'past_year']:
+                os.mkdir(f'{graph_dir}/{repo}')
+                generate_chart(contributors_stats[repo]['total'], 'bar', 'Commits', 'Total commits from all contributors', f'{graph_dir}/{repo}/total_commits.svg')
+                generate_chart(contributors_stats[repo]['past_year'], 'bar', 'Commits', 'Total commits from all contributors last year', f'{graph_dir}/{repo}/past_year_commits.svg')
 
         # I know using replace like this is really bad, I just don't want to spend years parsing the output
         contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
@@ -260,6 +295,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     else:
         contributors_output = ""
+
     lines_output = ""
 
     if lines_stats is not None:
@@ -278,8 +314,6 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                                       for repo in lines_stats
                                       if repo != "total"])
             lines_output += f"\nTotal SLOC: {lines_stats['total']}"
-    else:
-        lines_output = ""
 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
