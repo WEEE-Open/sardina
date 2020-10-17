@@ -165,23 +165,52 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     return stats
 
 def generate_chart(data: dict, type: str):
+    other = 0
+
+    for k in list(data):
+        if data[k] <= 10:
+            other += data.pop(k)
+
+    if other != 0:
+        data['other'] = other
+    
+    keys = data.keys()
+    values = data.values()
+
     if(type == 'pie'):
         figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'))
+        
+        # Set the color map and generate a properly sized color cycle
+        # TODO: What the frick is this?
+        wedges_count = len(values)
+        cms = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
+        color_maps = [plot.get_cmap(cm) for cm in cms]
+
+        colors = []
+        result = []
+
+        for cm,cmap in zip(color_maps, cms):
+            colors += [cm(i/cms[cmap]) for i in range(cms[cmap])]
+
+        #axis.set_prop_cycle('color', [color_map(((wedges_count + ((-1.0)**i)*i)%wedges_count)/(wedges_count)) for i in range(wedges_count)])
+        #colors1 = [color_map1(i/wedges_count) for i in range(wedges_count * 2)]
+        #colors2 = [color_map2(i/wedges_count) for i in range(wedges_count * 2)]
+
+        step = int(len(colors)/wedges_count)
+        for i in range(wedges_count):
+                result.append(colors[i*step])
+
+        axis.set_prop_cycle('color', result)
 
         # Remove the "total" key from the dictionary
         # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
         data.pop('total', 'nope')
 
-        keys = data.keys()
-        values = data.values()
-        
-        print(f'keys: {keys}\nvalue:{values}')
-
         wedges, texts = axis.pie(values)
-        axis.legend(wedges, keys, title='Repositories', loc='center right')
+        legend = axis.legend(wedges, keys, title='Repositories', bbox_to_anchor=(1.01, 1), loc='upper left')
         axis.set_title('Total commits to all repositories in the last year')
 
-        return figure, axis
+        return figure, axis, legend
 
 def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool):
     if(generate_graphs):
@@ -189,8 +218,11 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         os.mkdir(graph_dir)
 
     if commits_stats is not None:
-        f_yearly_commits, g_yearly_commits = generate_chart(dict(commits_stats), 'pie')
-        plot.savefig(f'{graph_dir}/total_yearly_commits.svg')
+        for k,v in commits_stats.items():
+            print(f'{k}: {v}')
+
+        f_yearly_commits, g_yearly_commits, l_yearly_commits = generate_chart(dict({k:v for (k, v) in commits_stats.items() if v != 0}), 'pie')
+        plot.savefig(f'{graph_dir}/total_yearly_commits.svg', bbox_extra_artists=(l_yearly_commits,), bbox_inches='tight')
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
@@ -233,22 +265,22 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     else:
         contributors_output = ""
-
-    if use_cloc:
-        lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
-                                  f"{lines_stats[repo]['comments']} comments - "
-                                  f"{lines_stats[repo]['blanks']} blank lines - "
-                                  f"{lines_stats[repo]['sloc'] + lines_stats[repo]['comments'] + lines_stats[repo]['blanks']} total"
-                                  for repo in lines_stats
-                                  if repo != "total"])
-        lines_output += f"\nTotal SLOC: {lines_stats['total']['sloc']}" \
-                        f"\nTotal lines including comments and blanks: {lines_stats['total']['all']}"
-
-    else:
-        lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
-                                  for repo in lines_stats
-                                  if repo != "total"])
-        lines_output += f"\nTotal SLOC: {lines_stats['total']}"
+    lines_output = ""
+#    if use_cloc:
+#        lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
+#                                  f"{lines_stats[repo]['comments']} comments - "
+#                                  f"{lines_stats[repo]['blanks']} blank lines - "
+#                                  f"{lines_stats[repo]['sloc'] + lines_stats[repo]['comments'] + lines_stats[repo]['blanks']} total"
+#                                  for repo in lines_stats
+#                                  if repo != "total"])
+#        lines_output += f"\nTotal SLOC: {lines_stats['total']['sloc']}" \
+#                        f"\nTotal lines including comments and blanks: {lines_stats['total']['all']}"
+#
+#    else:
+#        lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
+#                                  for repo in lines_stats
+#                                  if repo != "total"])
+#        lines_output += f"\nTotal SLOC: {lines_stats['total']}"
 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
@@ -271,8 +303,8 @@ def main():
     repos = get_repos(header)
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
-    lines_stats = get_lines_stats(repos, use_cloc)
-    print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc)
+    #lines_stats = get_lines_stats(repos, use_cloc)
+    print_all_stats(commits_stats, None, contributors_stats, use_cloc)
 
 
 if __name__ == "__main__":
