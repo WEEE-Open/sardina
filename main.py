@@ -164,7 +164,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
     return stats
 
-def generate_chart(data: dict, type: str):
+def generate_chart(data: dict, type: str, title: str, path: str):
     other = 0
 
     for k in list(data):
@@ -181,26 +181,21 @@ def generate_chart(data: dict, type: str):
         figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'))
         
         # Set the color map and generate a properly sized color cycle
-        # TODO: What the frick is this?
         wedges_count = len(values)
-        cms = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
-        color_maps = [plot.get_cmap(cm) for cm in cms]
+        color_dict = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
 
         colors = []
-        result = []
+        #result = []
 
-        for cm,cmap in zip(color_maps, cms):
-            colors += [cm(i/cms[cmap]) for i in range(cms[cmap])]
-
-        #axis.set_prop_cycle('color', [color_map(((wedges_count + ((-1.0)**i)*i)%wedges_count)/(wedges_count)) for i in range(wedges_count)])
-        #colors1 = [color_map1(i/wedges_count) for i in range(wedges_count * 2)]
-        #colors2 = [color_map2(i/wedges_count) for i in range(wedges_count * 2)]
+        for cm in color_dict:
+            cmap = plot.get_cmap(cm)
+            colors += [cmap(i/color_dict[cm]) for i in range(color_dict[cm])]
 
         step = int(len(colors)/wedges_count)
-        for i in range(wedges_count):
-                result.append(colors[i*step])
+        #for i in range(wedges_count):
+        #        result.append(colors[i*step])
 
-        axis.set_prop_cycle('color', result)
+        axis.set_prop_cycle('color', [colors[i*step] for i in range(wedges_count)])
 
         # Remove the "total" key from the dictionary
         # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
@@ -208,9 +203,9 @@ def generate_chart(data: dict, type: str):
 
         wedges, texts = axis.pie(values)
         legend = axis.legend(wedges, keys, title='Repositories', bbox_to_anchor=(1.01, 1), loc='upper left')
-        axis.set_title('Total commits to all repositories in the last year')
+        axis.set_title(title)
 
-        return figure, axis, legend
+        plot.savefig(path, bbox_extra_artists=(legend,), bbox_inches='tight')
 
 def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool):
     if(generate_graphs):
@@ -218,11 +213,9 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         os.mkdir(graph_dir)
 
     if commits_stats is not None:
-        for k,v in commits_stats.items():
-            print(f'{k}: {v}')
-
-        f_yearly_commits, g_yearly_commits, l_yearly_commits = generate_chart(dict({k:v for (k, v) in commits_stats.items() if v != 0}), 'pie')
-        plot.savefig(f'{graph_dir}/total_yearly_commits.svg', bbox_extra_artists=(l_yearly_commits,), bbox_inches='tight')
+        if(generate_graphs):
+            generate_chart(dict({k:v for (k, v) in commits_stats.items() if v != 0}), 'pie', 'Total commits to all repositories in the last year',
+                            f'{graph_dir}/total_yearly_commits.svg')
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
