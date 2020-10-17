@@ -291,12 +291,25 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                                .replace("}", "")
 
     else:
-        contributors_output = ""
-
-    lines_output = ""
+        contributors_output = "No contributors stats, as you've selected at the beginning."
 
     if lines_stats is not None:
         if use_cloc:
+            if(generate_graphs):
+                # Only show a repository if it contributes to the total SLOC count by at least 5%
+                minimum = lines_stats['total']['sloc'] * 0.005
+
+                generate_chart({r:lines_stats[r]['sloc'] for r in lines_stats if repo != 'total'}, minimum, 'pie', 'Repository', 'SLOC count by repository', f'{graph_dir}/sloc.svg')
+
+                for repo in lines_stats:
+                    if repo != 'total':
+                        try:
+                            os.mkdir(f'{graph_dir}/{repo}')
+                        except FileExistsError:
+                            pass
+
+                        generate_chart(dict(lines_stats[repo]), 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}', f'{graph_dir}/{repo}/lines.svg')
+
             lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
                                       f"{lines_stats[repo]['comments']} comments - "
                                       f"{lines_stats[repo]['blanks']} blank lines - "
@@ -311,6 +324,8 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                                       for repo in lines_stats
                                       if repo != "total"])
             lines_output += f"\nTotal SLOC: {lines_stats['total']}"
+    else:
+        lines_output = "No SLOC stats, as you've selected at the beginning."
 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
@@ -326,7 +341,7 @@ def main():
     use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
     get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
                         "their cache. y/N ").lower() == "y"
-    get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N").lower() == "y"
+    get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
     generate_graphs = input("Do you want to generate graphs for the statistics? y/N ").lower() == 'y'
 
     header = {'Authorization': f"token {token}"} if token != "YOUR TOKEN HERE" else {}
