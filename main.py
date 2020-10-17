@@ -237,7 +237,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if commits_stats is not None:
         if(generate_graphs):
-            generate_chart(dict(commits_stats), 10, 'pie', 'Repositories', 'Total commits to all repositories in the last year', f'{graph_dir}/yearly_commits_by_repo.svg')
+            generate_chart(dict(commits_stats), 10, 'pie', 'Repositories', 'Commits in the last year by repository', f'{graph_dir}/yearly_commits_by_repo.svg')
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
@@ -249,14 +249,14 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if contributors_stats is not None:
         if(generate_graphs):
-            generate_chart(dict(contributors_stats['total']), 1, 'bar', 'Commits', 'Total commits from all members', f'{graph_dir}/total_commits.svg')
-            generate_chart(dict(contributors_stats['past_year']), 1, 'bar', 'Commits', 'Total commits from all members last year', f'{graph_dir}/last_year_commits.svg')
+            generate_chart(dict(contributors_stats['total']), 1, 'bar', 'Commits', 'Commits by contributor', f'{graph_dir}/total_commits.svg')
+            generate_chart(dict(contributors_stats['past_year']), 1, 'bar', 'Commits', 'Commits in the last year by contributor', f'{graph_dir}/yearly_commits.svg')
 
         for repo in contributors_stats:
             if repo not in ['total', 'past_year']:
                 os.mkdir(f'{graph_dir}/{repo}')
-                generate_chart(dict(contributors_stats[repo]['total']), 1, 'bar', 'Commits', 'Total commits from all contributors', f'{graph_dir}/{repo}/total_commits.svg')
-                generate_chart(dict(contributors_stats[repo]['past_year']), 1, 'bar', 'Commits', 'Total commits from all contributors last year', f'{graph_dir}/{repo}/past_year_commits.svg')
+                generate_chart(dict(contributors_stats[repo]['total']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor', f'{graph_dir}/{repo}/total_commits.svg')
+                generate_chart(dict(contributors_stats[repo]['past_year']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor', f'{graph_dir}/{repo}/yearly_commits.svg')
 
         # I know using replace like this is really bad, I just don't want to spend years parsing the output
         contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
