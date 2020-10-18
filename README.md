@@ -45,3 +45,10 @@ optional: `python3 -m venv venv`
 optional: `source venv/bin/activate`  
 `pip install requests`  
 `python main.py`
+
+## Development
+
+Having to make all the necessary requests and clone all the repositories in order to test changes to the program is long, makes having a stable internet connection a requirement and hammers GitHub's servers with unnecessary requests. Therefore we included a couple of options into `config.py` that can make a developer's job simpler:
+
+* `devmode`: enables local caching of all GitHub API responses (list of repos, contributions and other statistics)
+* `keep_repos`: enables long-term storage of cloned repositories instead of deleting them after each run. Keep in mind your available storage!

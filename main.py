@@ -1,20 +1,21 @@
 import requests
 import re
 import os
+import json
 import matplotlib.pyplot as plot
 from datetime import datetime, timedelta
 from subprocess import run
 
 from ignored_files import ignored_files
 from github_pat import token
+from config import devmode,keep_repos
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
 owner = "weee-open"
 output_file = "stats"
+output_dir = "output"
 is_organization = True
-generate_graphs = True
-
 
 def raise_rate_limited_exception():
     raise Exception("You are getting rate-limited by GitHub's servers. Try again in a few minutes.") from None
@@ -32,20 +33,34 @@ def get_repos(header: dict) -> list:
     # As of the time of writing, we don't *need* pagination as we have < 100 repos, but just for future proofing
     # here is code that can handle n pages of repositories
     try:
-        response = requests.get(url, headers=header)
-        repos = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
+        if not (devmode and os.path.isfile('repos.json')):
+            response = requests.get(url, headers=header)
 
-        # If the result page is only one page long, no link header is present
-        if 'link' in response.headers:
-            for link in response.headers['link'].split(','):
-                location, rel = link.split(';')
+            # If in devmode, cache the response in case it does not yet exist
+            if devmode:
+                with open('repos.json', 'w') as f:
+                    json.dump(response.json(), f)
+                    f.close()
 
-                if rel.strip() == 'rel="last"':
-                    pages = int(re.compile('&page=(?P<page>[0-9]+)').search(location).group('page'))
+            repos = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
 
-            for page in range(2, (pages + 1)):
-                response = requests.get(f'{url}&page={page}', headers=header)
-                repos += [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
+            # If the result page is only one page long, no link header is present
+            if 'link' in response.headers:
+                for link in response.headers['link'].split(','):
+                    location, rel = link.split(';')
+
+                    if rel.strip() == 'rel="last"':
+                        pages = int(re.compile('&page=(?P<page>[0-9]+)').search(location).group('page'))
+
+                for page in range(2, (pages + 1)):
+                    response = requests.get(f'{url}&page={page}', headers=header)
+                    repos += [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
+
+        else:
+            print('Using cache for repository information')
+            with open('repos.json', 'r') as f:
+                repos = [repo['name'] for repo in json.load(f) if not repo['archived'] and not repo['disabled']]
+                f.close()
 
         # ignore case when sorting list of repos to prevent uppercase letters to come before lowercase letters
         return sorted(repos, key=str.casefold)
@@ -58,16 +73,36 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
 
+    if devmode:
+        try:
+            os.mkdir('repo-stats')
+        except FileExistsError:
+            pass
+
     print("\nGetting anonymous commits stats...")
     for i, repo in enumerate(repos):
-        response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity", headers=header)
-        print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
+        if(not (os.path.isfile(f'repo-stats/{repo}.anonymous.json') and devmode)):
+            response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity", headers=header)
 
-        if response.status_code == 403:
-            raise_rate_limited_exception()
-        elif response.status_code == 200:
-            stats[repo] = sum([weekly['total'] for weekly in response.json()])
-            stats['total'] += stats[repo]
+            # If in devmode, cache the response in case it does not yet exist
+            if devmode:
+                with open(f'repo-stats/{repo}.anonymous.json', 'w') as f:
+                    json.dump(response.json(), f)
+                    f.close()
+
+            print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
+
+            if response.status_code == 403:
+                raise_rate_limited_exception()
+            elif response.status_code == 200:
+                stats[repo] = sum([weekly['total'] for weekly in response.json()])
+                stats['total'] += stats[repo]
+        else:
+            print(f'Using cache for repo {repo}')
+            with open(f'repo-stats/{repo}.anonymous.json', 'r') as f:
+                stats[repo] = sum([weekly['total'] for weekly in json.load(f)])
+                stats['total'] += stats[repo]
+                f.close()
 
     print("\n")
     return stats
@@ -78,34 +113,59 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
     stats = {'total': {}, 'past_year': {}}
     unix_one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
 
+    if devmode:
+        try:
+            os.mkdir('repo-stats')
+        except FileExistsError:
+            pass
+
     print("Getting contributors commits stats...")
     for i, repo in enumerate(repos):
-        response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/contributors", headers=header)
-        print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
+        if(not (os.path.isfile(f'repo-stats/{repo}.json') and devmode)):
+            response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/contributors", headers=header)
 
-        if response.status_code == 403:
-            raise_rate_limited_exception()
+            # If in devmode, cache the response in case it does not yet exist
+            if devmode:
+                with open(f'repo-stats/{repo}.json', 'w') as f:
+                    json.dump(response.json(), f)
+                    f.close()
 
-        elif response.status_code == 200:
-            json = response.json()
-            stats[repo] = {
-                'total': {author['author']['login']: author['total']
-                          for author in json},
-                'past_year': {author['author']['login']: sum(week['c']
-                                                             for week in author['weeks']
-                                                             if week['w'] > unix_one_year_ago)
-                              for author in json},
-            }
+            print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
-            for author in json:
-                login = author['author']['login']
-                if login not in stats['total']:
-                    stats['total'][login] = 0
-                    stats['past_year'][login] = 0
-                stats['total'][login] += author['total']
-                stats['past_year'][login] += sum(week['c']
-                                                 for week in author['weeks']
-                                                 if week['w'] > unix_one_year_ago)
+            if response.status_code == 403:
+                raise_rate_limited_exception()
+
+            elif response.status_code == 200:
+                json_response = response.json()
+
+            else:
+                print('\n')
+                return stats
+
+        else:
+            print(f'Using cache for repo {repo}')
+            with open(f'repo-stats/{repo}.json', 'r') as f:
+                json_response = json.load(f)
+                f.close()
+
+        stats[repo] = {
+            'total': {author['author']['login']: author['total']
+                      for author in json_response},
+            'past_year': {author['author']['login']: sum(week['c']
+                                                         for week in author['weeks']
+                                                         if week['w'] > unix_one_year_ago)
+                          for author in json_response},
+        }
+
+        for author in json_response:
+            login = author['author']['login']
+            if login not in stats['total']:
+                stats['total'][login] = 0
+                stats['past_year'][login] = 0
+            stats['total'][login] += author['total']
+            stats['past_year'][login] += sum(week['c']
+                                             for week in author['weeks']
+                                             if week['w'] > unix_one_year_ago)
 
     print("\n")
     return stats
@@ -113,21 +173,30 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
 
 def _cleanup_repos(repos: list):
     for repo in repos:
-        run(f"rm -rf {repo}".split())
+        run(f"rm -rf repos/{repo}".split())
 
 
 def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
-    _cleanup_repos(repos)
+
+    if not (devmode and keep_repos):
+        _cleanup_repos(repos)
 
     print("Getting SLOC stats...")
+
+    try:
+        os.mkdir('repos')
+    except FileExistsError:
+        pass
+
     for i, repo in enumerate(repos):
-        run(f"git clone {url_clone}/{owner}/{repo}".split())
+        if not os.path.isdir(f'repos/{repo}'):
+            run(f"git clone {url_clone}/{owner}/{repo} repos/{repo}".split())
 
         if use_cloc:
             try:
-                cloc_out = run(f"cloc --csv {repo}",
+                cloc_out = run(f"cloc --csv repos/{repo}",
                                shell=True,
                                text=True,
                                capture_output=True).stdout.splitlines()[-1]
@@ -145,13 +214,13 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
                 raise_cloc_not_installed_exception()
 
         else:
-            git_files = run(f"cd {repo} && git ls-files -- . {ignored} && cd ..",
+            git_files = run(f"cd repos/{repo} && git ls-files -- . {ignored} && cd ..",
                             shell=True, text=True, capture_output=True).stdout.splitlines()
             # remove blank / whitespace-only lines
             for file in git_files:
-                run(f"sed '/^\s*$/d' {repo}/{file} &> /dev/null", shell=True)
+                run(f"sed '/^\s*$/d' repos/{repo}/{file} &> /dev/null", shell=True)
 
-            stats[repo] = int(run(f"cd {repo} && wc -l $(git ls-files -- . {ignored}) && cd ..",
+            stats[repo] = int(run(f"cd repos/{repo} && wc -l $(git ls-files -- . {ignored}) && cd ..",
                                   shell=True,
                                   text=True,
                                   capture_output=True).stdout.splitlines()[-1].split(" ")[-2])
@@ -160,7 +229,12 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
         print(f"{i + 1}/{len(repos)} -- {stats[repo]['sloc'] if use_cloc else stats[repo]} "
               f"total non-blank lines in repo {repo}")
-        run(f"rm -rf {repo}".split())
+
+        if not (devmode and keep_repos):
+            run(f"rm -rf repos/{repo}".split())
+
+    if not (devmode and keep_repos):
+        run(f"rm -rf repos".split())
 
     return stats
 
@@ -235,13 +309,19 @@ def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str,
     plot.close(figure)
 
 
-def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool):
-    if(generate_graphs):
-        graph_dir = datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
+def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool, generate_graphs: bool):
+    try:
+        os.mkdir(output_dir)
+    except FileExistsError:
+        pass
+
+    if generate_graphs:
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
+        graph_dir = f'{output_dir}/{timestamp}'
         os.mkdir(graph_dir)
 
     if commits_stats is not None:
-        if(generate_graphs):
+        if generate_graphs:
             generate_chart(dict(commits_stats), 10, 'pie', 'Repositories', 'Commits in the last year by repository', f'{graph_dir}/yearly_commits_by_repo.svg')
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
@@ -253,15 +333,15 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         commits_output = "No commits stats, as you've selected at the beginning."
 
     if contributors_stats is not None:
-        if(generate_graphs):
+        if generate_graphs:
             generate_chart(dict(contributors_stats['total']), 1, 'bar', 'Commits', 'Commits by contributor', f'{graph_dir}/total_commits.svg')
             generate_chart(dict(contributors_stats['past_year']), 1, 'bar', 'Commits', 'Commits in the last year by contributor', f'{graph_dir}/yearly_commits.svg')
 
-        for repo in contributors_stats:
-            if repo not in ['total', 'past_year']:
-                os.mkdir(f'{graph_dir}/{repo}')
-                generate_chart(dict(contributors_stats[repo]['total']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor', f'{graph_dir}/{repo}/total_commits.svg')
-                generate_chart(dict(contributors_stats[repo]['past_year']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor', f'{graph_dir}/{repo}/yearly_commits.svg')
+            for repo in contributors_stats:
+                if repo not in ['total', 'past_year']:
+                    os.mkdir(f'{graph_dir}/{repo}')
+                    generate_chart(dict(contributors_stats[repo]['total']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor', f'{graph_dir}/{repo}/total_commits.svg')
+                    generate_chart(dict(contributors_stats[repo]['past_year']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor', f'{graph_dir}/{repo}/yearly_commits.svg')
 
         # I know using replace like this is really bad, I just don't want to spend years parsing the output
         contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
@@ -300,11 +380,11 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if lines_stats is not None:
         if use_cloc:
-            if(generate_graphs):
+            if generate_graphs:
                 # Only show a repository if it contributes to the total SLOC count by at least 5%
                 minimum = lines_stats['total']['sloc'] * 0.005
 
-                generate_chart({r:lines_stats[r]['sloc'] for r in lines_stats if repo != 'total'}, minimum, 'pie', 'Repository', 'SLOC count by repository', f'{graph_dir}/sloc.svg')
+                generate_chart({r:lines_stats[r]['sloc'] for r in lines_stats if r != 'total'}, minimum, 'pie', 'Repository', 'SLOC count by repository', f'{graph_dir}/sloc.svg')
 
                 for repo in lines_stats:
                     if repo != 'total':
@@ -335,7 +415,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
 
-    output_path = f'{output_file} {datetime.now()}.txt' if not generate_graphs else f'{graph_dir}/stats.txt'
+    output_path = f'{output_dir}/{output_file} {datetime.now()}.txt' if not generate_graphs else f'{graph_dir}/stats.txt'
     with open(output_path, 'w') as out:
         out.write(f"Stats generated via https://github.com/weee-open/sardina\n"
                   f"use_cloc={use_cloc}\n"
@@ -355,7 +435,7 @@ def main():
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc) if get_lines else None
-    print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc)
+    print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc, generate_graphs)
 
 
 if __name__ == "__main__":
