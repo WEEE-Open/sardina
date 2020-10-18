@@ -172,8 +172,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
 
 
 def _cleanup_repos(repos: list):
-    for repo in repos:
-        run(f"rm -rf repos".split())
+    run("rm -rf repos".split())
 
 
 def get_lines_stats(repos: list, use_cloc: bool) -> dict:
@@ -234,12 +233,12 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
             run(f"rm -rf {os.path.join('repos', repo)}".split())
 
     if not (devmode and keep_repos):
-        run(f"rm -rf repos".split())
+        run("rm -rf repos".split())
 
     return stats
 
 
-def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str, path: str):
+def generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title: str, path: str):
     # Order data dictionary by size of elements
     data = {k:v for k,v in sorted(data.items(), key=lambda x: int(x[1]), reverse=True)}
 
@@ -261,7 +260,7 @@ def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str,
     values = data.values()
     count = len(values)
 
-    if type == 'pie':
+    if graph_type == 'pie':
         colors = []
         figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'))
 
@@ -280,8 +279,8 @@ def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str,
         axis.set_title(title)
 
         plot.savefig(path, bbox_extra_artists=(legend,), bbox_inches='tight')
-    
-    elif type == 'bar':
+
+    elif graph_type == 'bar':
         if count < 2:
             return
 
@@ -303,7 +302,7 @@ def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str,
             axis.annotate(str(width), xy=(width, bar.get_y() + bar.get_height() / 2), xytext=(3,0), textcoords='offset points', ha='left', va='center')
 
         plot.savefig(path, bbox_inches='tight')
-    
+
     plot.close(figure)
 
 
@@ -314,7 +313,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         pass
 
     if generate_graphs:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H.%M.%S.%f")
         graph_dir = os.path.join(output_dir, timestamp)
         os.mkdir(graph_dir)
 
