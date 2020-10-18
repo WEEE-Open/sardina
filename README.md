@@ -8,7 +8,10 @@ A Python script to quickly compute how much we've worked in terms of:
 - contributors commits
 - LOC  
 
-all three both per repository and total.
+all three both per repository and total. And it also generates cool graphs!
+
+![Pie chart example](./docs/pie.svg){:width="100%"}
+![Bar chart example](./docs/bar.svg){:width="100%"}
 
 All non-archived and non-disabled public repos are taken into consideration.
 
