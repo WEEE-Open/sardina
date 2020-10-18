@@ -43,5 +43,5 @@ You can skip this step if you want and use the script without a PAT, but you wil
 `cd sardina`  
 optional: `python3 -m venv venv`  
 optional: `source venv/bin/activate`  
-`pip install requests`  
+`pip install -r requirements.txt`  
 `python main.py`
