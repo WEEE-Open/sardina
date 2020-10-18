@@ -37,6 +37,12 @@ class Graph:
         self.min_count = min_count
         
         self.count = len(data)
+    
+    def set_count(self, value: int):
+        self.count = value
+
+    def set_data(self, data: dict):
+        self.data = data
 
 
 def raise_rate_limited_exception():
@@ -261,32 +267,13 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
 
 def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title: str, axis):
-    # Order data dictionary by size of elements
-    data = {k:v for k,v in sorted(data.items(), key=lambda x: int(x[1]), reverse=True)}
-
-    # Remove summatory keys from the dictionary.
-    # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
-    data.pop('total', 'nope')
-    data.pop('past_year', 'nope')
-
-    other = 0
-
-    for k in list(data):
-        if data[k] < minimum:
-            other += data.pop(k)
-
-    if other != 0:
-        data['other'] = other
-
     keys = data.keys()
     values = data.values()
     count = len(values)
 
     if graph_type == 'pie':
-        colors = []
-        #figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'), figsize=(12, 7), dpi=600)
-
         # Set the color map and generate a properly sized color cycle
+        colors = []
         colormaps = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
 
         for cm in colormaps:
@@ -300,16 +287,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
         legend = axis.legend(wedges, keys, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
         axis.set_title(title)
 
-        #plot.savefig(path, bbox_extra_artists=(legend,), bbox_inches='tight')
-
     elif graph_type == 'bar':
-        if count < 2:
-            return
-
-        # Dimensions of an A4 paper in inches are 8.27x11.69
-        # Make the graph dimentions proportional to the number of columns. In this way, we have consistent bar heights.
-        #figure, axis = plot.subplots(figsize=(12, 0.4 + 0.2*count), dpi=600)
-
         y = [i for i in range(count)]
 
         bars = axis.barh(y, values, align='center')
@@ -323,56 +301,57 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
             width = bar.get_width()
             axis.annotate(str(width), xy=(width, bar.get_y() + bar.get_height() / 2), xytext=(3,0), textcoords='offset points', ha='left', va='center')
 
-        #plot.savefig(path, bbox_inches='tight')
 
-    #plot.close(figure)
+def _normalize_data(data: dict, min_value: float):
+    # Remove summatory keys from the dictionary.
+    # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
+    data.pop('total', 'nope')
+    data.pop('past_year', 'nope')
 
-
-def _get_actual_data_count(data: list, min: float):
     other = 0
-    count = len(data)
 
-    for value in data:
-        if value < min:
-            other += value
-            count -= 1
+    for key in list(data.keys()):
+        if data[key] < min_value:
+            other += data.pop(key)
+
+    # Order data dictionary by size of elements
+    data = {k:v for k,v in sorted(data.items(), key=lambda x: int(x[1]), reverse=True)}
 
     if other > 0:
-        count += 1
+        data['other'] = other
     
-    return count
+    return data
 
 
-# TODO: All of this needs quite the refactoring!
 def generate_figure(graphs: List[Graph], path: str):
     filtered = []
     height = 0.0
 
     # If we only have empty graphs, do nothing
     for graph in graphs:
-        if _get_actual_data_count(graph.data.values(), graph.minimum) >= graph.min_count:
+        normalized = _normalize_data(dict(graph.data), graph.minimum)
+        if len(normalized) >= graph.min_count:
+            graph.set_count(len(normalized))
+            graph.set_data(normalized)
             filtered.append(graph)
 
     if len(filtered) == 0:
         return
 
-    for graph in graphs:
+    for graph in filtered:
         if graph.kind == 'pie':
-            print('incrementing h by 7')
             height += 7
         else:
-            data_count = _get_actual_data_count(graph.data.values(), graph.minimum)
-            print(f'incrementing h by {(0.4 + 0.2 * data_count) if data_count > 0 else 0}')
-            height += (0.4 + 0.2 * data_count) if data_count > 0 else 0
+            height += (0.4 + 0.2 * graph.count)
 
     figure, axis = plot.subplots(len(filtered), figsize=(12, height), dpi=600)
 
+    # We need a list for the following for loop and if len(filtered) = 1 axis is just an object. Maybe there is a better way to do this?
     if len(filtered) == 1:
-        __generate_chart(graphs[0].data, graphs[0].minimum, graphs[0].kind, graphs[0].legend, graphs[0].title, axis)
-    else:
-        for i,graph in enumerate(filtered):
-            if graph.count != 0:
-                __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.title, axis[i])
+        axis = [axis]
+
+    for i,graph in enumerate(filtered):
+        __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.title, axis[i])
     
     plot.savefig(path, bbox_inches='tight')
     plot.close(figure)
