@@ -10,8 +10,8 @@ A Python script to quickly compute how much we've worked in terms of:
 
 all three both per repository and total. And it also generates cool graphs!
 
-![Pie chart example](./docs/pie.svg){:width="100%"}
-![Bar chart example](./docs/bar.svg){:width="100%"}
+![Pie chart example](./docs/pie.svg)
+![Bar chart example](./docs/bar.svg)
 
 All non-archived and non-disabled public repos are taken into consideration.
 
