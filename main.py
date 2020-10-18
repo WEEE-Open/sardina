@@ -3,6 +3,7 @@ import re
 import os
 import json
 import matplotlib.pyplot as plot
+from typing import List
 from datetime import datetime, timedelta
 from subprocess import run
 
@@ -16,6 +17,27 @@ owner = "weee-open"
 output_file = "stats"
 output_dir = "output"
 is_organization = True
+
+class Graph:
+    data = {}
+
+    count = 0
+    minimum = 0
+
+    title = 'Default graph title'
+    legend = 'Default graph legend'
+    kind = 'pie'
+
+    def __init__(self, data: dict, minimum: int, min_count: int, kind: str, legend: str, title: str):
+        self.data = data
+        self.minimum = minimum
+        self.kind = kind
+        self.legend = legend
+        self.title = title
+        self.min_count = min_count
+        
+        self.count = len(data)
+
 
 def raise_rate_limited_exception():
     raise Exception("You are getting rate-limited by GitHub's servers. Try again in a few minutes.") from None
@@ -238,7 +260,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     return stats
 
 
-def generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title: str, path: str):
+def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title: str, axis):
     # Order data dictionary by size of elements
     data = {k:v for k,v in sorted(data.items(), key=lambda x: int(x[1]), reverse=True)}
 
@@ -262,7 +284,7 @@ def generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title
 
     if graph_type == 'pie':
         colors = []
-        figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'))
+        #figure, axis = plot.subplots(subplot_kw=dict(aspect='equal'), figsize=(12, 7), dpi=600)
 
         # Set the color map and generate a properly sized color cycle
         colormaps = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
@@ -278,7 +300,7 @@ def generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title
         legend = axis.legend(wedges, keys, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
         axis.set_title(title)
 
-        plot.savefig(path, bbox_extra_artists=(legend,), bbox_inches='tight')
+        #plot.savefig(path, bbox_extra_artists=(legend,), bbox_inches='tight')
 
     elif graph_type == 'bar':
         if count < 2:
@@ -286,7 +308,7 @@ def generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title
 
         # Dimensions of an A4 paper in inches are 8.27x11.69
         # Make the graph dimentions proportional to the number of columns. In this way, we have consistent bar heights.
-        figure, axis = plot.subplots(figsize=(12, 0.4 + 0.2*count), dpi=600)
+        #figure, axis = plot.subplots(figsize=(12, 0.4 + 0.2*count), dpi=600)
 
         y = [i for i in range(count)]
 
@@ -301,8 +323,58 @@ def generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title
             width = bar.get_width()
             axis.annotate(str(width), xy=(width, bar.get_y() + bar.get_height() / 2), xytext=(3,0), textcoords='offset points', ha='left', va='center')
 
-        plot.savefig(path, bbox_inches='tight')
+        #plot.savefig(path, bbox_inches='tight')
 
+    #plot.close(figure)
+
+
+def _get_actual_data_count(data: list, min: float):
+    other = 0
+    count = len(data)
+
+    for value in data:
+        if value < min:
+            other += value
+            count -= 1
+
+    if other > 0:
+        count += 1
+    
+    return count
+
+
+# TODO: All of this needs quite the refactoring!
+def generate_figure(graphs: List[Graph], path: str):
+    filtered = []
+    height = 0.0
+
+    # If we only have empty graphs, do nothing
+    for graph in graphs:
+        if _get_actual_data_count(graph.data.values(), graph.minimum) >= graph.min_count:
+            filtered.append(graph)
+
+    if len(filtered) == 0:
+        return
+
+    for graph in graphs:
+        if graph.kind == 'pie':
+            print('incrementing h by 7')
+            height += 7
+        else:
+            data_count = _get_actual_data_count(graph.data.values(), graph.minimum)
+            print(f'incrementing h by {(0.4 + 0.2 * data_count) if data_count > 0 else 0}')
+            height += (0.4 + 0.2 * data_count) if data_count > 0 else 0
+
+    figure, axis = plot.subplots(len(filtered), figsize=(12, height), dpi=600)
+
+    if len(filtered) == 1:
+        __generate_chart(graphs[0].data, graphs[0].minimum, graphs[0].kind, graphs[0].legend, graphs[0].title, axis)
+    else:
+        for i,graph in enumerate(filtered):
+            if graph.count != 0:
+                __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.title, axis[i])
+    
+    plot.savefig(path, bbox_inches='tight')
     plot.close(figure)
 
 
@@ -319,7 +391,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if commits_stats is not None:
         if generate_graphs:
-            generate_chart(dict(commits_stats), 10, 'pie', 'Repositories', 'Commits in the last year by repository', os.path.join(graph_dir, 'yearly_commits_by_repo.svg'))
+            generate_figure([Graph(dict(commits_stats), 10, 1, 'pie', 'Repositories', 'Commits in the last year by repository')], os.path.join(graph_dir, 'yearly_commits_by_repo.svg'))
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
@@ -331,14 +403,14 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if contributors_stats is not None:
         if generate_graphs:
-            generate_chart(dict(contributors_stats['total']), 1, 'bar', 'Commits', 'Commits by contributor', os.path.join(graph_dir, 'total_commits.svg'))
-            generate_chart(dict(contributors_stats['past_year']), 1, 'bar', 'Commits', 'Commits in the last year by contributor', os.path.join(graph_dir, 'yearly_commits.svg'))
+            generate_figure([Graph(dict(contributors_stats['total']), 1, 1, 'bar', 'Commits', 'Commits by contributor')], os.path.join(graph_dir, 'total_commits.svg'))
+            generate_figure([Graph(dict(contributors_stats['past_year']), 1, 1, 'bar', 'Commits', 'Commits in the last year by contributor')], os.path.join(graph_dir, 'yearly_commits.svg'))
 
             for repo in contributors_stats:
                 if repo not in ['total', 'past_year']:
                     os.mkdir(f'{graph_dir}/{repo}')
-                    generate_chart(dict(contributors_stats[repo]['total']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor', os.path.join(graph_dir, repo, 'total_commits.svg'))
-                    generate_chart(dict(contributors_stats[repo]['past_year']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor', os.path.join(graph_dir, repo, 'yearly_commits.svg'))
+                    generate_figure([Graph(dict(contributors_stats[repo]['total']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor')], os.path.join(graph_dir, repo, 'total_commits.svg'))
+                    generate_figure([Graph(dict(contributors_stats[repo]['past_year']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor')], os.path.join(graph_dir, repo, 'yearly_commits.svg'))
 
         # I know using replace like this is really bad, I just don't want to spend years parsing the output
         contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
@@ -381,7 +453,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                 # Only show a repository if it contributes to the total SLOC count by at least 0.5%
                 minimum = lines_stats['total']['sloc'] * 0.005
 
-                generate_chart({r:lines_stats[r]['sloc'] for r in lines_stats if r != 'total'}, minimum, 'pie', 'Repository', 'SLOC count by repository', os.path.join(graph_dir, 'sloc.svg'))
+                generate_figure([Graph({r:lines_stats[r]['sloc'] for r in lines_stats if r != 'total'}, minimum, 1, 'pie', 'Repository', 'SLOC count by repository')], os.path.join(graph_dir, 'sloc.svg'))
 
                 for repo in lines_stats:
                     if repo != 'total':
@@ -390,7 +462,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                         except FileExistsError:
                             pass
 
-                        generate_chart(dict(lines_stats[repo]), 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}', os.path.join(graph_dir, repo, 'lines.svg'))
+                        generate_figure([Graph(dict(lines_stats[repo]), 1, 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}')], os.path.join(graph_dir, repo, 'lines.svg'))
 
             lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
                                       f"{lines_stats[repo]['comments']} comments - "
@@ -406,7 +478,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                 # Only show a repository if it contributes to the total SLOC count by at least 0.5%
                 minimum = lines_stats['total'] * 0.005
 
-                generate_chart(dict(lines_stats), minimum, 'pie', 'Repository', 'SLOC count by repository', os.path.join(graph_dir, 'sloc.svg'))
+                generate_figure([Graph(dict(lines_stats), minimum, 1, 'pie', 'Repository', 'SLOC count by repository')], os.path.join(graph_dir, 'sloc.svg'))
 
             lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
                                       for repo in lines_stats
