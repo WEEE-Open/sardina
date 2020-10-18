@@ -241,7 +241,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
 def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str, path: str):
     # Order data dictionary by size of elements
-    ls = sorted(data.items(), key=lambda x: int(x[1]))
+    ls = sorted(data.items(), key=lambda x: int(x[1]), reverse=True)
     ls.reverse()
     data = {k:v for k,v in ls}
 
