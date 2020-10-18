@@ -357,21 +357,66 @@ def generate_figure(graphs: List[Graph], path: str):
     plot.close(figure)
 
 
-def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool, generate_graphs: bool):
+def _make_directory(path: str):
     try:
-        os.mkdir(output_dir)
+        os.mkdir(path)
     except FileExistsError:
         pass
+
+
+def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool, generate_graphs: bool):
+    _make_directory(output_dir)
 
     if generate_graphs:
         timestamp = datetime.now().strftime("%Y-%m-%d %H.%M.%S.%f")
         graph_dir = os.path.join(output_dir, timestamp)
         os.mkdir(graph_dir)
 
-    if commits_stats is not None:
-        if generate_graphs:
-            generate_figure([Graph(dict(commits_stats), 10, 1, 'pie', 'Repositories', 'Commits in the last year by repository')], os.path.join(graph_dir, 'yearly_commits_by_repo.svg'))
+        global_graphs = {}
 
+        yearly_repo_commits = {}
+        repo_commits = {}
+        sloc_by_repo = {}
+
+        if commits_stats is not None:
+            yearly_commits_by_repo = Graph(dict(commits_stats), 10, 1, 'pie', 'Repositories', 'Commits in the last year by repository')
+            global_graphs['yearly_commits_by_repo.svg'] = yearly_commits_by_repo
+
+        if contributors_stats is not None:
+            yearly_commits_by_contributor = Graph(dict(contributors_stats['past_year']), 1, 1, 'bar', 'Commits', 'Commits in the last year by contributor')
+            commits_by_contributor = Graph(dict(contributors_stats['total']), 1, 1, 'bar', 'Commits', 'Commits by contributor')
+            global_graphs['yearly_commits_by_contributor.svg'] = yearly_commits_by_contributor
+            global_graphs['commits_by_contributor.svg'] = commits_by_contributor
+
+            for repo in contributors_stats:
+                if repo not in ['total', 'past_year']:
+                    os.mkdir(os.path.join(graph_dir, repo))
+                    yearly_repo_commits[repo] = Graph(dict(contributors_stats[repo]['total']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor')
+                    repo_commits[repo] = Graph(dict(contributors_stats[repo]['past_year']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor')
+
+        if lines_stats is not None:
+            if use_cloc:
+                minimum = lines_stats['total']['sloc'] * 0.005
+                total_sloc = Graph({r:lines_stats[r]['sloc'] for r in lines_stats if r != 'total'}, minimum, 1, 'pie', 'Repository', 'SLOC count by repository')
+                global_graphs['sloc.svg'] = (total_sloc)
+
+                for repo in lines_stats:
+                    if repo != 'total':
+                        sloc_by_repo[repo] = Graph(dict(lines_stats[repo]), 1, 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}')
+
+            else:
+                total_sloc = Graph(dict(lines_stats), minimum, 1, 'pie', 'Repository', 'SLOC count by repository')
+                global_graphs['sloc.svg'] = total_sloc
+        
+        for graph in global_graphs:
+            generate_figure([global_graphs[graph]], os.path.join(graph_dir, graph))
+
+        generate_figure(global_graphs.values(), os.path.join(graph_dir, 'combined.svg'))
+
+        # TODO: Generate all the other graphs
+
+
+    if commits_stats is not None:
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
                                     if repo != "total"])
@@ -381,16 +426,6 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         commits_output = "No commits stats, as you've selected at the beginning."
 
     if contributors_stats is not None:
-        if generate_graphs:
-            generate_figure([Graph(dict(contributors_stats['total']), 1, 1, 'bar', 'Commits', 'Commits by contributor')], os.path.join(graph_dir, 'total_commits.svg'))
-            generate_figure([Graph(dict(contributors_stats['past_year']), 1, 1, 'bar', 'Commits', 'Commits in the last year by contributor')], os.path.join(graph_dir, 'yearly_commits.svg'))
-
-            for repo in contributors_stats:
-                if repo not in ['total', 'past_year']:
-                    os.mkdir(f'{graph_dir}/{repo}')
-                    generate_figure([Graph(dict(contributors_stats[repo]['total']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor')], os.path.join(graph_dir, repo, 'total_commits.svg'))
-                    generate_figure([Graph(dict(contributors_stats[repo]['past_year']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor')], os.path.join(graph_dir, repo, 'yearly_commits.svg'))
-
         # I know using replace like this is really bad, I just don't want to spend years parsing the output
         contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
                                          .replace("'", "")
@@ -428,21 +463,6 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if lines_stats is not None:
         if use_cloc:
-            if generate_graphs:
-                # Only show a repository if it contributes to the total SLOC count by at least 0.5%
-                minimum = lines_stats['total']['sloc'] * 0.005
-
-                generate_figure([Graph({r:lines_stats[r]['sloc'] for r in lines_stats if r != 'total'}, minimum, 1, 'pie', 'Repository', 'SLOC count by repository')], os.path.join(graph_dir, 'sloc.svg'))
-
-                for repo in lines_stats:
-                    if repo != 'total':
-                        try:
-                            os.mkdir(f'{graph_dir}/{repo}')
-                        except FileExistsError:
-                            pass
-
-                        generate_figure([Graph(dict(lines_stats[repo]), 1, 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}')], os.path.join(graph_dir, repo, 'lines.svg'))
-
             lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
                                       f"{lines_stats[repo]['comments']} comments - "
                                       f"{lines_stats[repo]['blanks']} blank lines - "
@@ -453,12 +473,6 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                             f"\nTotal lines including comments and blanks: {lines_stats['total']['all']}"
 
         else:
-            if generate_graphs:
-                # Only show a repository if it contributes to the total SLOC count by at least 0.5%
-                minimum = lines_stats['total'] * 0.005
-
-                generate_figure([Graph(dict(lines_stats), minimum, 1, 'pie', 'Repository', 'SLOC count by repository')], os.path.join(graph_dir, 'sloc.svg'))
-
             lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
                                       for repo in lines_stats
                                       if repo != "total"])
