@@ -381,7 +381,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     if lines_stats is not None:
         if use_cloc:
             if generate_graphs:
-                # Only show a repository if it contributes to the total SLOC count by at least 5%
+                # Only show a repository if it contributes to the total SLOC count by at least 0.5%
                 minimum = lines_stats['total']['sloc'] * 0.005
 
                 generate_chart({r:lines_stats[r]['sloc'] for r in lines_stats if r != 'total'}, minimum, 'pie', 'Repository', 'SLOC count by repository', f'{graph_dir}/sloc.svg')
@@ -405,6 +405,12 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                             f"\nTotal lines including comments and blanks: {lines_stats['total']['all']}"
 
         else:
+            if generate_graphs:
+                # Only show a repository if it contributes to the total SLOC count by at least 0.5%
+                minimum = lines_stats['total'] * 0.005
+
+                generate_chart(dict(lines_stats), minimum, 'pie', 'Repository', 'SLOC count by repository', f'{graph_dir}/sloc.svg')
+
             lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
                                       for repo in lines_stats
                                       if repo != "total"])
