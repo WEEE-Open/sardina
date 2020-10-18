@@ -81,12 +81,12 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
 
     print("\nGetting anonymous commits stats...")
     for i, repo in enumerate(repos):
-        if(not (os.path.isfile(f'repo-stats/{repo}.anonymous.json') and devmode)):
+        if(not (os.path.isfile(os.path.join('repo-stats', f'{repo}.anonymous.json')) and devmode)):
             response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity", headers=header)
 
             # If in devmode, cache the response in case it does not yet exist
             if devmode:
-                with open(f'repo-stats/{repo}.anonymous.json', 'w') as f:
+                with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'w') as f:
                     json.dump(response.json(), f)
                     f.close()
 
@@ -99,7 +99,7 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
                 stats['total'] += stats[repo]
         else:
             print(f'Using cache for repo {repo}')
-            with open(f'repo-stats/{repo}.anonymous.json', 'r') as f:
+            with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'r') as f:
                 stats[repo] = sum([weekly['total'] for weekly in json.load(f)])
                 stats['total'] += stats[repo]
                 f.close()
@@ -121,12 +121,12 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
 
     print("Getting contributors commits stats...")
     for i, repo in enumerate(repos):
-        if(not (os.path.isfile(f'repo-stats/{repo}.json') and devmode)):
+        if(not (os.path.isfile(os.path.join('repo-stats', f'{repo}.json')) and devmode)):
             response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/contributors", headers=header)
 
             # If in devmode, cache the response in case it does not yet exist
             if devmode:
-                with open(f'repo-stats/{repo}.json', 'w') as f:
+                with open(os.path.join('repo-stats', f'{repo}.json'), 'w') as f:
                     json.dump(response.json(), f)
                     f.close()
 
@@ -144,7 +144,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
 
         else:
             print(f'Using cache for repo {repo}')
-            with open(f'repo-stats/{repo}.json', 'r') as f:
+            with open(os.path.join('repo-stats', f'{repo}.json'), 'r') as f:
                 json_response = json.load(f)
                 f.close()
 
@@ -173,7 +173,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
 
 def _cleanup_repos(repos: list):
     for repo in repos:
-        run(f"rm -rf repos/{repo}".split())
+        run(f"rm -rf repos".split())
 
 
 def get_lines_stats(repos: list, use_cloc: bool) -> dict:
@@ -191,12 +191,12 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
         pass
 
     for i, repo in enumerate(repos):
-        if not os.path.isdir(f'repos/{repo}'):
-            run(f"git clone {url_clone}/{owner}/{repo} repos/{repo}".split())
+        if not os.path.isdir(os.path.join('repos', repo)):
+            run(f"git clone {url_clone}/{owner}/{repo} {os.path.join('repos', repo)}".split())
 
         if use_cloc:
             try:
-                cloc_out = run(f"cloc --csv repos/{repo}",
+                cloc_out = run(f"cloc --csv {os.path.join('repos', repo)}",
                                shell=True,
                                text=True,
                                capture_output=True).stdout.splitlines()[-1]
@@ -214,13 +214,13 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
                 raise_cloc_not_installed_exception()
 
         else:
-            git_files = run(f"cd repos/{repo} && git ls-files -- . {ignored} && cd ..",
+            git_files = run(f"cd {os.path.join('repos', repo)} && git ls-files -- . {ignored} && cd ..",
                             shell=True, text=True, capture_output=True).stdout.splitlines()
             # remove blank / whitespace-only lines
             for file in git_files:
-                run(f"sed '/^\s*$/d' repos/{repo}/{file} &> /dev/null", shell=True)
+                run(f"sed '/^\s*$/d' {os.path.join('repos', repo, file)} &> /dev/null", shell=True)
 
-            stats[repo] = int(run(f"cd repos/{repo} && wc -l $(git ls-files -- . {ignored}) && cd ..",
+            stats[repo] = int(run(f"cd {os.path.join('repos', repo)} && wc -l $(git ls-files -- . {ignored}) && cd ..",
                                   shell=True,
                                   text=True,
                                   capture_output=True).stdout.splitlines()[-1].split(" ")[-2])
@@ -231,7 +231,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
               f"total non-blank lines in repo {repo}")
 
         if not (devmode and keep_repos):
-            run(f"rm -rf repos/{repo}".split())
+            run(f"rm -rf {os.path.join('repos', repo)}".split())
 
     if not (devmode and keep_repos):
         run(f"rm -rf repos".split())
@@ -241,9 +241,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
 def generate_chart(data: dict, minimum: int, type: str, legend: str, title: str, path: str):
     # Order data dictionary by size of elements
-    ls = sorted(data.items(), key=lambda x: int(x[1]), reverse=True)
-    ls.reverse()
-    data = {k:v for k,v in ls}
+    data = {k:v for k,v in sorted(data.items(), key=lambda x: int(x[1]), reverse=True)}
 
     # Remove summatory keys from the dictionary.
     # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
@@ -316,13 +314,13 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         pass
 
     if generate_graphs:
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
-        graph_dir = f'{output_dir}/{timestamp}'
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        graph_dir = os.path.join(output_dir, timestamp)
         os.mkdir(graph_dir)
 
     if commits_stats is not None:
         if generate_graphs:
-            generate_chart(dict(commits_stats), 10, 'pie', 'Repositories', 'Commits in the last year by repository', f'{graph_dir}/yearly_commits_by_repo.svg')
+            generate_chart(dict(commits_stats), 10, 'pie', 'Repositories', 'Commits in the last year by repository', os.path.join(graph_dir, 'yearly_commits_by_repo.svg'))
 
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
                                     for repo in commits_stats
@@ -334,14 +332,14 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
     if contributors_stats is not None:
         if generate_graphs:
-            generate_chart(dict(contributors_stats['total']), 1, 'bar', 'Commits', 'Commits by contributor', f'{graph_dir}/total_commits.svg')
-            generate_chart(dict(contributors_stats['past_year']), 1, 'bar', 'Commits', 'Commits in the last year by contributor', f'{graph_dir}/yearly_commits.svg')
+            generate_chart(dict(contributors_stats['total']), 1, 'bar', 'Commits', 'Commits by contributor', os.path.join(graph_dir, 'total_commits.svg'))
+            generate_chart(dict(contributors_stats['past_year']), 1, 'bar', 'Commits', 'Commits in the last year by contributor', os.path.join(graph_dir, 'yearly_commits.svg'))
 
             for repo in contributors_stats:
                 if repo not in ['total', 'past_year']:
                     os.mkdir(f'{graph_dir}/{repo}')
-                    generate_chart(dict(contributors_stats[repo]['total']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor', f'{graph_dir}/{repo}/total_commits.svg')
-                    generate_chart(dict(contributors_stats[repo]['past_year']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor', f'{graph_dir}/{repo}/yearly_commits.svg')
+                    generate_chart(dict(contributors_stats[repo]['total']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor', os.path.join(graph_dir, repo, 'total_commits.svg'))
+                    generate_chart(dict(contributors_stats[repo]['past_year']), 1, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor', os.path.join(graph_dir, repo, 'yearly_commits.svg'))
 
         # I know using replace like this is really bad, I just don't want to spend years parsing the output
         contributors_output = "\n".join([f"{repo}: {contributors_stats[repo]}"
@@ -384,7 +382,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                 # Only show a repository if it contributes to the total SLOC count by at least 0.5%
                 minimum = lines_stats['total']['sloc'] * 0.005
 
-                generate_chart({r:lines_stats[r]['sloc'] for r in lines_stats if r != 'total'}, minimum, 'pie', 'Repository', 'SLOC count by repository', f'{graph_dir}/sloc.svg')
+                generate_chart({r:lines_stats[r]['sloc'] for r in lines_stats if r != 'total'}, minimum, 'pie', 'Repository', 'SLOC count by repository', os.path.join(graph_dir, 'sloc.svg'))
 
                 for repo in lines_stats:
                     if repo != 'total':
@@ -393,7 +391,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                         except FileExistsError:
                             pass
 
-                        generate_chart(dict(lines_stats[repo]), 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}', f'{graph_dir}/{repo}/lines.svg')
+                        generate_chart(dict(lines_stats[repo]), 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}', os.path.join(graph_dir, repo, 'lines.svg'))
 
             lines_output = "\n".join([f"{repo}: {lines_stats[repo]['sloc']} sloc - "
                                       f"{lines_stats[repo]['comments']} comments - "
@@ -409,7 +407,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                 # Only show a repository if it contributes to the total SLOC count by at least 0.5%
                 minimum = lines_stats['total'] * 0.005
 
-                generate_chart(dict(lines_stats), minimum, 'pie', 'Repository', 'SLOC count by repository', f'{graph_dir}/sloc.svg')
+                generate_chart(dict(lines_stats), minimum, 'pie', 'Repository', 'SLOC count by repository', os.path.join(graph_dir, 'sloc.svg'))
 
             lines_output = "\n".join([f"{repo}: {lines_stats[repo]} lines total"
                                       for repo in lines_stats
@@ -421,7 +419,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
 
-    output_path = f'{output_dir}/{output_file} {datetime.now()}.txt' if not generate_graphs else f'{graph_dir}/stats.txt'
+    output_path = os.path.join(output_dir, f'{output_file} {datetime.now()}.txt') if not generate_graphs else os.path.join(graph_dir, f'{output_file}.txt')
     with open(output_path, 'w') as out:
         out.write(f"Stats generated via https://github.com/weee-open/sardina\n"
                   f"use_cloc={use_cloc}\n"
