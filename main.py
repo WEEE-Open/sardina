@@ -269,6 +269,16 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
     values = data.values()
     count = len(values)
 
+    total = 0
+    labels = []
+
+    for key in data:
+        total += data[key]
+    
+    for key in data:
+        percentage = (float(data[key] * 100) / float(total))
+        labels.append('%s (%.2f%%)' % (key, percentage))
+
     if graph_type == 'pie':
         # Set the color map and generate a properly sized color cycle
         colors = []
@@ -282,9 +292,9 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
         axis.set_prop_cycle('color', [colors[i*step] for i in range(count)])
 
         wedges, texts = axis.pie(values, counterclock=False, startangle=90)
-        legend = axis.legend(wedges, keys, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
+        legend = axis.legend(wedges, labels, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
         axis.set_aspect('equal')
-        axis.set_title(title)
+        axis.set_title(f'{title} (total: {total})')
 
     elif graph_type == 'bar':
         y = [i for i in range(count)]
@@ -294,7 +304,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
         axis.set_yticklabels(keys)
         axis.invert_yaxis()
         axis.set_xlabel(legend)
-        axis.set_title(title)
+        axis.set_title(f'{title} (total: {total})')
 
         for bar in bars:
             width = bar.get_width()
