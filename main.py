@@ -19,16 +19,14 @@ output_dir = "output"
 is_organization = True
 
 class Graph:
-    data = {}
+    def __init__(self,
+                 data: dict = {},
+                 minimum: int = 0,
+                 min_count: int = 0,
+                 kind: str = 'pie',
+                 legend: str = 'Default graph legend',
+                 title: str = 'Default graph title'):
 
-    count = 0
-    minimum = 0
-
-    title = 'Default graph title'
-    legend = 'Default graph legend'
-    kind = 'pie'
-
-    def __init__(self, data: dict, minimum: int, min_count: int, kind: str, legend: str, title: str):
         self.data = data
         self.minimum = minimum
         self.kind = kind
@@ -285,6 +283,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
 
         wedges, texts = axis.pie(values, counterclock=False, startangle=90)
         legend = axis.legend(wedges, keys, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
+        axis.set_aspect('equal')
         axis.set_title(title)
 
     elif graph_type == 'bar':
@@ -407,7 +406,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
             else:
                 total_sloc = Graph(dict(lines_stats), minimum, 1, 'pie', 'Repository', 'SLOC count by repository')
                 global_graphs['sloc.svg'] = total_sloc
-        
+
         for graph in global_graphs:
             generate_figure([global_graphs[graph]], os.path.join(graph_dir, graph))
 
