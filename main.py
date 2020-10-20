@@ -330,7 +330,7 @@ def _normalize_data(data: dict, min_value: float):
 
 
 def generate_figure(graphs: List[Graph], path: str):
-    filtered = [graph for graph in graphs if graph.is_suitable()]
+    filtered = sorted([graph for graph in graphs if graph.is_suitable()], key=lambda x: 0 if x.kind == 'pie' else 1)
     heights = []
 
     # If we have no suitable graphs, return without doing nothing
