@@ -8,7 +8,10 @@ A Python script to quickly compute how much we've worked in terms of:
 - contributors commits
 - LOC  
 
-all three both per repository and total.
+all three both per repository and total. And it also generates cool graphs!
+
+![Pie chart example](./docs/pie.svg)
+![Bar chart example](./docs/bar.svg)
 
 All non-archived and non-disabled public repos are taken into consideration.
 
@@ -43,5 +46,12 @@ You can skip this step if you want and use the script without a PAT, but you wil
 `cd sardina`  
 optional: `python3 -m venv venv`  
 optional: `source venv/bin/activate`  
-`pip install requests`  
+`pip install -r requirements.txt`  
 `python main.py`
+
+## Development
+
+Having to make all the necessary requests and clone all the repositories in order to test changes to the program is long, makes having a stable internet connection a requirement and hammers GitHub's servers with unnecessary requests. Therefore we included a couple of options into `config.py` that can make a developer's job simpler:
+
+* `devmode`: enables local caching of all GitHub API responses (list of repos, contributions and other statistics)
+* `keep_repos`: enables long-term storage of cloned repositories instead of deleting them after each run. Keep in mind your available storage!

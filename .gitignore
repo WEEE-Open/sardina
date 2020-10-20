@@ -1,4 +1,12 @@
 __pycache__
 .idea/
+.vscode/
 venv/
-*.txt
+
+# Cache
+repos
+repo-stats
+repos.json
+
+# Output directory
+output
