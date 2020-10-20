@@ -63,7 +63,6 @@ def get_repos(header: dict) -> list:
             if devmode:
                 with open('repos.json', 'w') as f:
                     json.dump(response.json(), f)
-                    f.close()
 
             repos = [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
 
@@ -83,7 +82,6 @@ def get_repos(header: dict) -> list:
             print('Using cache for repository information')
             with open('repos.json', 'r') as f:
                 repos = [repo['name'] for repo in json.load(f) if not repo['archived'] and not repo['disabled']]
-                f.close()
 
         # ignore case when sorting list of repos to prevent uppercase letters to come before lowercase letters
         return sorted(repos, key=str.casefold)
@@ -111,7 +109,6 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
             if devmode:
                 with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'w') as f:
                     json.dump(response.json(), f)
-                    f.close()
 
             print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
@@ -125,7 +122,6 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
             with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'r') as f:
                 stats[repo] = sum([weekly['total'] for weekly in json.load(f)])
                 stats['total'] += stats[repo]
-                f.close()
 
     print("\n")
     return stats
@@ -151,7 +147,6 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
             if devmode:
                 with open(os.path.join('repo-stats', f'{repo}.json'), 'w') as f:
                     json.dump(response.json(), f)
-                    f.close()
 
             print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
@@ -169,7 +164,6 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
             print(f'Using cache for repo {repo}')
             with open(os.path.join('repo-stats', f'{repo}.json'), 'r') as f:
                 json_response = json.load(f)
-                f.close()
 
         stats[repo] = {
             'total': {author['author']['login']: author['total']
