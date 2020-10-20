@@ -13,7 +13,7 @@ from config import devmode,keep_repos
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
-owner = "weee-open"
+owner = "WEEE-Open"
 output_file = "stats"
 output_dir = "output"
 is_organization = True
@@ -371,9 +371,11 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     _make_directory(output_dir)
 
     if generate_graphs:
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H.%M.%S.%f")
         graph_dir = os.path.join(output_dir, timestamp)
         _make_directory(graph_dir)
+        _make_directory(os.path.join(graph_dir, owner))
 
         global_graphs = {}
 
@@ -414,9 +416,9 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
             generate_figure([repo_commits[graph], yearly_repo_commits[graph], sloc_by_repo[graph]], os.path.join(graph_dir, f'{graph}.svg'))
 
         for graph in global_graphs:
-            generate_figure([global_graphs[graph]], os.path.join(graph_dir, graph))
+            generate_figure([global_graphs[graph]], os.path.join(graph_dir, owner, graph))
 
-        generate_figure(global_graphs.values(), os.path.join(graph_dir, 'combined.svg'))
+        generate_figure(global_graphs.values(), os.path.join(graph_dir, owner, 'combined.svg'))
 
         # TODO: Generate all the other graphs
 
@@ -488,7 +490,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
 
-    output_path = os.path.join(output_dir, f'{output_file} {datetime.now()}.txt') if not generate_graphs else os.path.join(graph_dir, f'{output_file}.txt')
+    output_path = os.path.join(output_dir, f'{output_file} {datetime.now()}.txt') if not generate_graphs else os.path.join(graph_dir, owner, f'{output_file}.txt')
     with open(output_path, 'w') as out:
         out.write(f"Stats generated via https://github.com/weee-open/sardina\n"
                   f"use_cloc={use_cloc}\n"
