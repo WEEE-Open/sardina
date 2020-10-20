@@ -27,20 +27,17 @@ class Graph:
                  legend: str = 'Default graph legend',
                  title: str = 'Default graph title'):
 
-        self.data = data
         self.minimum = minimum
+        self.min_count = min_count
         self.kind = kind
         self.legend = legend
         self.title = title
-        self.min_count = min_count
         
-        self.count = len(data)
-    
-    def set_count(self, value: int):
-        self.count = value
+        self.data = _normalize_data(data, minimum)
+        self.count = len(self.data)
 
-    def set_data(self, data: dict):
-        self.data = data
+    def is_suitable(self) -> bool:
+        return True if len(self.data) >= self.min_count else False
 
 
 def raise_rate_limited_exception():
@@ -333,31 +330,21 @@ def _normalize_data(data: dict, min_value: float):
 
 
 def generate_figure(graphs: List[Graph], path: str):
-    filtered = []
+    filtered = [graph for graph in graphs if graph.is_suitable()]
     heights = []
-    height = 0.0
 
-    # If we only have empty graphs, do nothing
-    for graph in graphs:
-        normalized = _normalize_data(dict(graph.data), graph.minimum)
-        if len(normalized) >= graph.min_count:
-            graph.set_count(len(normalized))
-            graph.set_data(normalized)
-            filtered.append(graph)
-
+    # If we have no suitable graphs, return without doing nothing
     if len(filtered) == 0:
         return
 
     for graph in filtered:
         if graph.kind == 'pie':
-            height += 7
             heights.append(7)
         else:
-            height += (0.3 * graph.count)
             heights.append((0.3 * graph.count))
 
     figure, axis = plot.subplots(len(filtered),
-                                 figsize=(12, height),
+                                 figsize=(12, sum(heights)),
                                  dpi=600,
                                  gridspec_kw={'height_ratios': [h / heights[0] for h in heights]})
 
