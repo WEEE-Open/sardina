@@ -334,6 +334,7 @@ def _normalize_data(data: dict, min_value: float):
 
 def generate_figure(graphs: List[Graph], path: str):
     filtered = []
+    heights = []
     height = 0.0
 
     # If we only have empty graphs, do nothing
@@ -350,10 +351,15 @@ def generate_figure(graphs: List[Graph], path: str):
     for graph in filtered:
         if graph.kind == 'pie':
             height += 7
+            heights.append(7)
         else:
-            height += (0.4 + 0.2 * graph.count)
+            height += (0.3 * graph.count)
+            heights.append((0.3 * graph.count))
 
-    figure, axis = plot.subplots(len(filtered), figsize=(12, height), dpi=600)
+    figure, axis = plot.subplots(len(filtered),
+                                 figsize=(12, height),
+                                 dpi=600,
+                                 gridspec_kw={'height_ratios': [h / heights[0] for h in heights]})
 
     # We need a list for the following for loop and if len(filtered) = 1 axis is just an object. Maybe there is a better way to do this?
     if len(filtered) == 1:
@@ -362,6 +368,7 @@ def generate_figure(graphs: List[Graph], path: str):
     for i,graph in enumerate(filtered):
         __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.title, axis[i])
     
+    plot.tight_layout()
     plot.savefig(path, bbox_inches='tight')
     plot.close(figure)
 
@@ -379,7 +386,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     if generate_graphs:
         timestamp = datetime.now().strftime("%Y-%m-%d %H.%M.%S.%f")
         graph_dir = os.path.join(output_dir, timestamp)
-        os.mkdir(graph_dir)
+        _make_directory(graph_dir)
 
         global_graphs = {}
 
@@ -399,7 +406,6 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
             for repo in contributors_stats:
                 if repo not in ['total', 'past_year']:
-                    os.mkdir(os.path.join(graph_dir, repo))
                     yearly_repo_commits[repo] = Graph(dict(contributors_stats[repo]['total']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor')
                     repo_commits[repo] = Graph(dict(contributors_stats[repo]['past_year']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor')
 
@@ -416,6 +422,9 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
             else:
                 total_sloc = Graph(dict(lines_stats), minimum, 1, 'pie', 'Repository', 'SLOC count by repository')
                 global_graphs['sloc.svg'] = total_sloc
+
+        for graph in sloc_by_repo:
+            generate_figure([repo_commits[graph], yearly_repo_commits[graph], sloc_by_repo[graph]], os.path.join(graph_dir, f'{graph}.svg'))
 
         for graph in global_graphs:
             generate_figure([global_graphs[graph]], os.path.join(graph_dir, graph))
