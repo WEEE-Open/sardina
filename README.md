@@ -37,16 +37,19 @@ Also, we are curious nerds.
 
 First of all, generate a Personal Access Token (PAT) from your GitHub's [developer settings](https://github.com/settings/tokens) page.  
 The token only needs access to the APIs so you can leave all the permission boxes unticked and generate a token that can only access your public information and has no control over your account, but still benefit from the 5000 API requests per hour of authenticated requests.  
-Then, paste your new token in `github_pat.py`.
 
 You can skip this step if you want and use the script without a PAT, but you will be subject to a limit of 60 API requests per hour, which means you could only fetch complete statistics for an account with at most 30 repos (we have 32 at the moment, so a PAT is highly recommended).
+
+The configuration is done in `config.py`. There you can paste your PAT generated at the previous step, and configure for which owner you want to see the stats (either a user or an organization), where you want to save the output, and if you want to run the script in development mode.
 
 `git clone https://github.com/weee-open/sardina`  
 `cd sardina`  
 optional: `python3 -m venv venv`  
 optional: `source venv/bin/activate`  
 `pip install -r requirements.txt`  
-`python main.py`
+`vim config.py`  
+`python main.py`  
+optional: `deactivate`
 
 ## Development
 
