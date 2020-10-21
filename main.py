@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 from subprocess import run
 
 from ignored_files import ignored_files
-from github_pat import token
-from config import owner, is_organization, output_file, output_dir, dev_mode, keep_repos
+from config import owner, is_organization, output_file, output_dir, token, \
+                   dev_mode, keep_repos
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
