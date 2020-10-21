@@ -213,12 +213,18 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
                                shell=True,
                                text=True,
                                capture_output=True).stdout.splitlines()[-1]
-
-                stats[repo] = {
-                    'sloc': int(cloc_out.split(",")[-1]) or 0,
-                    'comments': int(cloc_out.split(",")[-2]) or 0,
-                    'blanks': int(cloc_out.split(",")[-3]) or 0,
-                }
+                try:
+                    stats[repo] = {
+                        'sloc': int(cloc_out.split(",")[-1]) or 0,
+                        'comments': int(cloc_out.split(",")[-2]) or 0,
+                        'blanks': int(cloc_out.split(",")[-3]) or 0,
+                    }
+                except ValueError:  # there are no lines in this repository
+                    stats[repo] = {
+                        'sloc': 0,
+                        'comments': 0,
+                        'blanks': 0,
+                    }
 
                 stats['total']['sloc'] += stats[repo]['sloc']
                 stats['total']['all'] += stats[repo]['sloc'] + stats[repo]['comments'] + stats[repo]['blanks']
