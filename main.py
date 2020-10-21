@@ -9,10 +9,11 @@ from subprocess import run
 
 from ignored_files import ignored_files
 from github_pat import token
-from config import owner, is_organization, output_file, output_dir, devmode, keep_repos
+from config import owner, is_organization, output_file, output_dir, dev_mode, keep_repos
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
+
 
 class Graph:
     def __init__(self,
@@ -52,11 +53,11 @@ def get_repos(header: dict) -> list:
     # As of the time of writing, we don't *need* pagination as we have < 100 repos, but just for future proofing
     # here is code that can handle n pages of repositories
     try:
-        if not (devmode and os.path.isfile('repos.json')):
+        if not (dev_mode and os.path.isfile('repos.json')):
             response = requests.get(url, headers=header)
 
             # If in devmode, cache the response in case it does not yet exist
-            if devmode:
+            if dev_mode:
                 with open('repos.json', 'w') as f:
                     json.dump(response.json(), f)
 
@@ -90,7 +91,7 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#statistics
     stats = {'total': 0}
 
-    if devmode:
+    if dev_mode:
         try:
             os.mkdir('repo-stats')
         except FileExistsError:
@@ -98,11 +99,11 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
 
     print("\nGetting anonymous commits stats...")
     for i, repo in enumerate(repos):
-        if(not (os.path.isfile(os.path.join('repo-stats', f'{repo}.anonymous.json')) and devmode)):
+        if(not (os.path.isfile(os.path.join('repo-stats', f'{repo}.anonymous.json')) and dev_mode)):
             response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity", headers=header)
 
             # If in devmode, cache the response in case it does not yet exist
-            if devmode:
+            if dev_mode:
                 with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'w') as f:
                     json.dump(response.json(), f)
 
@@ -128,7 +129,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
     stats = {'total': {}, 'past_year': {}}
     unix_one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
 
-    if devmode:
+    if dev_mode:
         try:
             os.mkdir('repo-stats')
         except FileExistsError:
@@ -136,11 +137,11 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
 
     print("Getting contributors commits stats...")
     for i, repo in enumerate(repos):
-        if(not (os.path.isfile(os.path.join('repo-stats', f'{repo}.json')) and devmode)):
+        if(not (os.path.isfile(os.path.join('repo-stats', f'{repo}.json')) and dev_mode)):
             response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/contributors", headers=header)
 
             # If in devmode, cache the response in case it does not yet exist
-            if devmode:
+            if dev_mode:
                 with open(os.path.join('repo-stats', f'{repo}.json'), 'w') as f:
                     json.dump(response.json(), f)
 
@@ -192,7 +193,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
 
-    if not (devmode and keep_repos):
+    if not (dev_mode and keep_repos):
         _cleanup_repos(repos)
 
     print("Getting SLOC stats...")
@@ -242,10 +243,10 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
         print(f"{i + 1}/{len(repos)} -- {stats[repo]['sloc'] if use_cloc else stats[repo]} "
               f"total non-blank lines in repo {repo}")
 
-        if not (devmode and keep_repos):
+        if not (dev_mode and keep_repos):
             run(f"rm -rf {os.path.join('repos', repo)}".split())
 
-    if not (devmode and keep_repos):
+    if not (dev_mode and keep_repos):
         run("rm -rf repos".split())
 
     return stats
