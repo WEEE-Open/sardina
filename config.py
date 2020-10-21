@@ -6,8 +6,6 @@ output_dir = "output"
 # your PAT generated at https://github.com/settings/tokens - see README
 token = "YOUR TOKEN HERE"
 
-# Set this to true if you want to cache requests locally for fast development
-dev_mode = False
-
-# Set this to true if you also want to retain *all* cloned repositories. Mind the storage space!
-keep_repos = False
+# development configuration
+dev_mode = False  # False for normal use, True if you want to cache requests locally for fast development
+keep_repos = False  # False for normal use, True if you want to retain *all* cloned repositories. Mind the storage!
