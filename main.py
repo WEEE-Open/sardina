@@ -9,14 +9,10 @@ from subprocess import run
 
 from ignored_files import ignored_files
 from github_pat import token
-from config import devmode,keep_repos
+from config import owner, is_organization, output_file, output_dir, devmode, keep_repos
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
-owner = "WEEE-Open"
-output_file = "stats"
-output_dir = "output"
-is_organization = True
 
 class Graph:
     def __init__(self,

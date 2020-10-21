@@ -1,3 +1,9 @@
+# general configuration
+owner = "WEEE-Open"
+is_organization = True  # True for multi-contributor organizations, False for single users
+output_file = "stats"
+output_dir = "output"
+
 # Set this to true if you want to cache requests locally for fast development
 devmode = False
 
