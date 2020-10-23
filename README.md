@@ -14,6 +14,10 @@ all three both per repository and total. And it also generates cool graphs!
 
 All non-archived and non-disabled public repos are taken into consideration.
 
+## Where
+
+You can try out this repository directly in the browser at [this link](https://softweeere.caste.dev)!
+
 ## How
 
 Count our commits:
