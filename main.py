@@ -189,6 +189,42 @@ def _cleanup_repos(repos: list):
     run("rm -rf repos".split())
 
 
+def _find_ignored_files(repo: str):
+    if os.path.exists('clocignore'):
+        os.remove('clocignore')
+
+    # Store already excluded dirs to avoid unneccessarily iterating a bunch of already excluded paths
+    excluded_dirs = []
+
+    for root, dirs, files in os.walk(os.path.join('repos', repo)):
+        go = True
+
+        for excluded in excluded_dirs:
+            if root.replace(os.path.join('repos', repo), '').strip('/').startswith(excluded):
+                go = False
+        
+        if not go:
+            continue
+
+        dirs_list = sorted([os.path.join(root.replace(os.path.join('repos', repo), '').strip('/'), d) for d in dirs])
+        files_list = [os.path.join(root.replace(os.path.join('repos', repo), '').strip('/'), f) for f in files]
+
+        with open('clocignore', 'a') as output:
+            for r in ignored_files:
+                reg = re.compile(r)
+
+                for element in dirs_list:
+                    if reg.search(element):
+                        excluded_dirs.append(element)
+                        output.write(f'{element}\n')
+                    
+                for element in files_list:
+                    if reg.search(element):
+                        output.write(f'{element}\n')
+    
+    return 'asd'
+
+
 def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
     ignored = " ".join([f"':!:{file}'" for file in ignored_files])
@@ -209,10 +245,13 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
         if use_cloc:
             try:
-                cloc_out = run(f"cloc --csv {os.path.join('repos', repo)}",
+                _find_ignored_files(repo)
+
+                cloc_out = run(f"cloc --csv --exclude-list-file=../../clocignore .",
                                shell=True,
                                text=True,
-                               capture_output=True).stdout.splitlines()[-1]
+                               capture_output=True,
+                               cwd=os.path.join('repos', repo)).stdout.splitlines()[-1]
                 try:
                     stats[repo] = {
                         'sloc': int(cloc_out.split(",")[-1]) or 0,
@@ -254,6 +293,8 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
     if not (dev_mode and keep_repos):
         run("rm -rf repos".split())
+
+    run("rm -f clocignore".split())
 
     return stats
 
