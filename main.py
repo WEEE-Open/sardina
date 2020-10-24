@@ -195,6 +195,10 @@ def _find_ignored_files(repo: str) -> list:
     output = []
 
     for root, dirs, files in os.walk(os.path.join('repos', repo)):
+        # For each directory in the excluded directories list such that the root currently being evaluated is a children
+        # of said directory, append a dummy element to the list. If the list is True (non-empty), then skip the current
+        # root altogether since we already excluded its parent, no need to recurse and waste further time.
+        # Could have been done with a nested for loop, however i would have had no clean way to continue the outer loop.
         if [1 for excluded in excluded_dirs if root.replace(os.path.join('repos', repo), '').strip('/').startswith(excluded)]:
             continue
 
