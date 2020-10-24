@@ -238,10 +238,10 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
         pass
 
     for i, repo in enumerate(repos):
-        ignored_list = _find_ignored_files(repo)
-
         if not os.path.isdir(os.path.join('repos', repo)):
             run(f"git clone {url_clone}/{owner}/{repo} {os.path.join('repos', repo)}".split())
+
+        ignored_list = _find_ignored_files(repo)
 
         if use_cloc:
             try:
