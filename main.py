@@ -189,9 +189,43 @@ def _cleanup_repos(repos: list):
     run("rm -rf repos".split())
 
 
+def _find_ignored_files(repo: str) -> list:
+    # Store already excluded dirs to avoid unneccessarily iterating a bunch of already excluded paths
+    excluded_dirs = []
+    output = []
+
+    for root, dirs, files in os.walk(os.path.join('repos', repo)):
+        # For each directory in the excluded directories list such that the root currently being evaluated is a children
+        # of said directory, append a dummy element to the list. If the list is True (non-empty), then skip the current
+        # root altogether since we already excluded its parent, no need to recurse and waste further time.
+        # Could have been done with a nested for loop, however i would have had no clean way to continue the outer loop.
+        if [1 for excluded in excluded_dirs if root.replace(os.path.join('repos', repo), '').strip('/').startswith(excluded)]:
+            continue
+
+        dirs_list = [os.path.join(root.replace(os.path.join('repos', repo), '').strip('/'), d) for d in dirs]
+        files_list = [os.path.join(root.replace(os.path.join('repos', repo), '').strip('/'), f) for f in files]
+
+        # Some files can be counted twice or more if they match more than one regex. We could fix it by iterating over
+        # elements of the array instead of the list of expressions, but that would mean compiling the expression two
+        # times (much slower) or giving up on using the excluded_dirs feature (slower). Since having duplicate entries
+        # is not a problem, I decided to leave this as-is.
+        for expression in ignored_files:
+            reg = re.compile(expression)
+
+            for element in dirs_list:
+                if reg.search(element):
+                    excluded_dirs.append(element)
+                    output.append(element)
+                
+            for element in files_list:
+                if reg.search(element):
+                    output.append(element)
+    
+    return output
+
+
 def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
-    ignored = " ".join([f"':!:{file}'" for file in ignored_files])
 
     if not (dev_mode and keep_repos):
         _cleanup_repos(repos)
@@ -204,15 +238,22 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
         pass
 
     for i, repo in enumerate(repos):
+        ignored_list = _find_ignored_files(repo)
+
         if not os.path.isdir(os.path.join('repos', repo)):
             run(f"git clone {url_clone}/{owner}/{repo} {os.path.join('repos', repo)}".split())
 
         if use_cloc:
             try:
-                cloc_out = run(f"cloc --csv {os.path.join('repos', repo)}",
+                with open('clocignore', 'w') as clocignore:
+                    for element in ignored_list:
+                        clocignore.write(f'{element}\n')
+
+                cloc_out = run(f"cloc --csv --exclude-list-file=../../clocignore .",
                                shell=True,
                                text=True,
-                               capture_output=True).stdout.splitlines()[-1]
+                               capture_output=True,
+                               cwd=os.path.join('repos', repo)).stdout.splitlines()[-1]
                 try:
                     stats[repo] = {
                         'sloc': int(cloc_out.split(",")[-1]) or 0,
@@ -233,13 +274,27 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
                 raise_cloc_not_installed_exception()
 
         else:
-            git_files = run(f"cd {os.path.join('repos', repo)} && git ls-files -- . {ignored} && cd ..",
+            git_files = run(f"cd {os.path.join('repos', repo)} && git ls-files -- . && cd ..",
                             shell=True, text=True, capture_output=True).stdout.splitlines()
+
+            # I know, ignoring files directly from the git ls-files command is tempting.
+            # However we are now using an exhaustive list of files as a blacklist instead of simple patterns.
+            # For very large repositories, we might hit the shell argument list size limit.
+            # Therefore, we are removing blacklisted files in post-production.
+            for file in ignored_list:
+                try:
+                    git_files.remove(file)
+                except ValueError:
+                    pass
+
             # remove blank / whitespace-only lines
             for file in git_files:
-                run(f"sed '/^\s*$/d' {os.path.join('repos', repo, file)} &> /dev/null", shell=True)
+                run(f"sed '/^\s*$/d' '{os.path.join('repos', repo, file)}' &> /dev/null", shell=True)
 
-            stats[repo] = int(run(f"cd {os.path.join('repos', repo)} && wc -l $(git ls-files -- . {ignored}) && cd ..",
+            stats[repo] = 0
+
+            for file in git_files:
+                stats[repo] += int(run(f"cd {os.path.join('repos', repo)} && wc -l {file.encode('utf-8').decode('unicode-escape').encode('latin1').decode('utf-8')} && cd ..",
                                   shell=True,
                                   text=True,
                                   capture_output=True).stdout.splitlines()[-1].split(" ")[-2])
@@ -254,6 +309,9 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
     if not (dev_mode and keep_repos):
         run("rm -rf repos".split())
+
+    if use_cloc:
+        run("rm -f clocignore".split())
 
     return stats
 
