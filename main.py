@@ -270,8 +270,6 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
                 raise_cloc_not_installed_exception()
 
         else:
-            ignored = "".join([f"':!:{file}'" for file in ignored_list])
-
             git_files = run(f"cd {os.path.join('repos', repo)} && git ls-files -- . && cd ..",
                             shell=True, text=True, capture_output=True).stdout.splitlines()
 
