@@ -368,6 +368,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     _make_directory(output_dir)
 
     if generate_graphs:
+        print("Generating graphs...")
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H.%M.%S.%f")
         graph_dir = os.path.join(output_dir, timestamp)
@@ -418,7 +419,6 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         generate_figure(global_graphs.values(), os.path.join(graph_dir, owner, 'combined.svg'))
 
         # TODO: Generate all the other graphs
-
 
     if commits_stats is not None:
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
@@ -509,6 +509,7 @@ def main():
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc) if get_lines else None
     print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc, generate_graphs)
+    print(f"Done. You can see the results in the {output_dir} directory.")
 
 
 if __name__ == "__main__":
