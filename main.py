@@ -487,7 +487,8 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
     print(f"\n\n{output}")
 
-    output_path = os.path.join(output_dir, f'{output_file} {datetime.now()}.txt') if not generate_graphs else os.path.join(graph_dir, owner, f'{output_file}.txt')
+    output_path = os.path.join(output_dir, f'{output_file} {datetime.now()}.txt') if not generate_graphs \
+        else os.path.join(graph_dir, owner, f'{output_file}.txt')
     with open(output_path, 'w') as out:
         out.write(f"Stats generated via https://github.com/weee-open/sardina\n"
                   f"use_cloc={use_cloc}\n"
