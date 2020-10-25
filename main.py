@@ -576,7 +576,7 @@ def main():
     graph_group.add_argument('--no-graphs', action='store_true', default=None, help="Do not generate graphs.")
 
     parser.add_argument('-p', '--ping', required=False, default=None, action='store_true',
-                                        help='Re-trigger stats generation on GitHub servers. Useful with cron')
+                                        help='Re-trigger stats generation on GitHub servers. Useful with cron.')
 
     args = parser.parse_args()
 
@@ -585,8 +585,7 @@ def main():
         get_commits = True
         get_lines = False
         generate_graphs = False
-
-    if not args.ping:
+    else:
         if args.cloc or args.wc:
             use_cloc = args.cloc
         else:
