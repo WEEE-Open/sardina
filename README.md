@@ -55,6 +55,34 @@ optional: `source venv/bin/activate`
 `python main.py`  
 optional: `deactivate`
 
+### Command line options
+```shell script
+./main.py --help                               
+usage: main.py [-h] [--cloc | --wc] [--commits | --no-commits] [--sloc | --no-sloc] [--graphs | --no-graphs] [-p]
+
+S.A.R.D.I.N.A. - Statistiche Amabili Rendimento Degli Informatici Nell'Anno
+
+optional arguments:
+  -h, --help    show this help message and exit
+  -p, --ping    Re-trigger stats generation on GitHub servers. Useful with cron.
+
+Software to use to count lines of code:
+  --cloc        Use CLOC to count SLOC.
+  --wc          Use WC to count SLOC.
+
+Count contributions to all repositories:
+  --commits     Count commits.
+  --no-commits  Do not count commits.
+
+Count SLOC (source lines of code) of repositories:
+  --sloc        Count SLOC.
+  --no-sloc     Do not count SLOC.
+
+Generate graphs for the gathered statistics:
+  --graphs      Generate graphs.
+  --no-graphs   Do not generate graphs.
+```
+
 ## Development
 
 Having to make all the necessary requests and clone all the repositories in order to test changes to the program is long, makes having a stable internet connection a requirement and hammers GitHub's servers with unnecessary requests. Therefore we included a couple of options into `config.py` that can make a developer's job simpler:
