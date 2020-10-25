@@ -579,33 +579,32 @@ def main():
     args = parser.parse_args()
 
     if args.ping:
-        try:
-            response = requests.get('https://github.com')
-            exit(0)
-        except requests.exceptions.ConnectionError:
-            exit(1)
+        use_cloc = True    # We don't need this but this way we avoid the prompt (since this is intended for automated operation)
+        get_commits = True
+        get_lines = False
+        generate_graphs = False
 
+    if not args.ping:
+        if args.cloc or args.wc:
+            use_cloc = args.cloc
+        else:
+            use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
 
-    if args.cloc or args.wc:
-        use_cloc = args.cloc
-    else:
-        use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
-    
-    if args.commits or args.no_commits:
-        get_commits = args.commits
-    else:
-        get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
-                            "their cache. y/N ").lower() == "y"
-    
-    if args.sloc or args.no_sloc:
-        get_lines = args.sloc
-    else:
-        get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
-    
-    if args.graphs or args.no_graphs:
-        generate_graphs = args.graphs
-    else:
-        generate_graphs = input("Do you want to generate graphs for the statistics? y/N ").lower() == 'y'
+        if args.commits or args.no_commits:
+            get_commits = args.commits
+        else:
+            get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
+                                "their cache. y/N ").lower() == "y"
+
+        if args.sloc or args.no_sloc:
+            get_lines = args.sloc
+        else:
+            get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
+
+        if args.graphs or args.no_graphs:
+            generate_graphs = args.graphs
+        else:
+            generate_graphs = input("Do you want to generate graphs for the statistics? y/N ").lower() == 'y'
 
     header = {'Authorization': f"token {token}"} if token != "YOUR TOKEN HERE" else {}
 
@@ -613,8 +612,10 @@ def main():
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc) if get_lines else None
-    print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc, generate_graphs)
-    print(f"\nDone. You can see the results in the {output_dir} directory.")
+    
+    if not args.ping:    
+        print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc, generate_graphs)
+        print(f"\nDone. You can see the results in the {output_dir} directory.")
 
 
 if __name__ == "__main__":
