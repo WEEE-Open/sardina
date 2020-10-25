@@ -553,11 +553,58 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
 
 def main():
-    use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
-    get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
-                        "their cache. y/N ").lower() == "y"
-    get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
-    generate_graphs = input("Do you want to generate graphs for the statistics? y/N ").lower() == 'y'
+    import argparse
+
+    parser = argparse.ArgumentParser(description="S.A.R.D.I.N.A. - Statistiche Amabili Rendimento Degli Informatici Nell'Anno")
+
+    cloc_group = parser.add_argument_group('Software to use to count lines of code').add_mutually_exclusive_group(required=False)
+    cloc_group.add_argument('--cloc', action='store_true', default=None, help="Use CLOC to count SLOC.")
+    cloc_group.add_argument('--wc', action='store_true', default=None, help="Use WC to count SLOC.")
+
+    commits_group = parser.add_argument_group('Count contributions to all repositories').add_mutually_exclusive_group(required=False)
+    commits_group.add_argument('--commits', action='store_true', default=None, help="Count commits.")
+    commits_group.add_argument('--no-commits', action='store_true', default=None, help="Do not count commits.")
+
+    sloc_group = parser.add_argument_group('Count SLOC (source lines of code) of repositories').add_mutually_exclusive_group(required=False)
+    sloc_group.add_argument('--sloc', action='store_true', default=None, help="Count SLOC.")
+    sloc_group.add_argument('--no-sloc', action='store_true', default=None, help="Do not count SLOC.")
+
+    graph_group = parser.add_argument_group('Generate graphs for the gathered statistics').add_mutually_exclusive_group(required=False)
+    graph_group.add_argument('--graphs', action='store_true', default=None, help="Generate graphs.")
+    graph_group.add_argument('--no-graphs', action='store_true', default=None, help="Do not generate graphs.")
+
+    parser.add_argument('-p', '--ping', required=False, default=None, action='store_true',
+                                        help='Only ping GitHub servers and exit with 0 if they can be reached.')
+
+    args = parser.parse_args()
+
+    if args.ping:
+        use_cloc = True    # We don't need this but this way we avoid the prompt (since this is intended for automated operation)
+        get_commits = True
+        get_lines = False
+        generate_graphs = False
+
+    if not args.ping:
+        if args.cloc or args.wc:
+            use_cloc = args.cloc
+        else:
+            use_cloc = input("Do you want to use cloc (C) or wc (W) to count SLOC? c/W ").lower() == "c"
+
+        if args.commits or args.no_commits:
+            get_commits = args.commits
+        else:
+            get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
+                                "their cache. y/N ").lower() == "y"
+
+        if args.sloc or args.no_sloc:
+            get_lines = args.sloc
+        else:
+            get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
+
+        if args.graphs or args.no_graphs:
+            generate_graphs = args.graphs
+        else:
+            generate_graphs = input("Do you want to generate graphs for the statistics? y/N ").lower() == 'y'
 
     header = {'Authorization': f"token {token}"} if token != "YOUR TOKEN HERE" else {}
 
@@ -565,8 +612,10 @@ def main():
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
     lines_stats = get_lines_stats(repos, use_cloc) if get_lines else None
-    print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc, generate_graphs)
-    print(f"\nDone. You can see the results in the {output_dir} directory.")
+    
+    if not args.ping:    
+        print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc, generate_graphs)
+        print(f"\nDone. You can see the results in the {output_dir} directory.")
 
 
 if __name__ == "__main__":
