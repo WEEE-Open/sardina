@@ -576,7 +576,7 @@ def main():
     graph_group.add_argument('--no-graphs', action='store_true', default=None, help="Do not generate graphs.")
 
     parser.add_argument('-p', '--ping', required=False, default=None, action='store_true',
-                                        help='Only ping GitHub servers and exit with 0 if they can be reached.')
+                                        help='Re-trigger stats generation on GitHub servers. Useful with cron')
 
     args = parser.parse_args()
 
