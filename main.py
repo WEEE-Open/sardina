@@ -426,7 +426,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     _make_directory(output_dir)
 
     if generate_graphs:
-        print("Generating graphs...")
+        print("\nGenerating graphs...")
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H.%M.%S.%f")
         graph_dir = os.path.join(output_dir, timestamp)
