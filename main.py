@@ -238,10 +238,10 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
         pass
 
     for i, repo in enumerate(repos):
-        ignored_list = _find_ignored_files(repo)
-
         if not os.path.isdir(os.path.join('repos', repo)):
             run(f"git clone {url_clone}/{owner}/{repo} {os.path.join('repos', repo)}".split())
+
+        ignored_list = _find_ignored_files(repo)
 
         if use_cloc:
             try:
@@ -465,6 +465,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                         sloc_by_repo[repo] = Graph(dict(lines_stats[repo]), 1, 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}')
 
             else:
+                minimum = lines_stats['total'] * 0.005
                 total_sloc = Graph(dict(lines_stats), minimum, 1, 'pie', 'Repository', 'SLOC count by repository')
                 global_graphs['sloc.svg'] = total_sloc
 
@@ -475,8 +476,6 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
             generate_figure([global_graphs[graph]], os.path.join(graph_dir, owner, graph))
 
         generate_figure(global_graphs.values(), os.path.join(graph_dir, owner, 'combined.svg'))
-
-        # TODO: Generate all the other graphs
 
     if commits_stats is not None:
         commits_output = "\n".join([f"{repo}: {commits_stats[repo]} commits past year"
