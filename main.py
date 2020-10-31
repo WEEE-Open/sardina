@@ -24,13 +24,15 @@ class Graph:
                  min_count: int = 0,
                  kind: str = 'pie',
                  legend: str = 'Default graph legend',
-                 title: str = 'Default graph title'):
+                 title: str = 'Default graph title',
+                 counter: str = 'total'):
 
         self.minimum = minimum
         self.min_count = min_count
         self.kind = kind
         self.legend = legend
         self.title = title
+        self.counter = counter
         
         self.data = _normalize_data(data, minimum)
         self.count = len(self.data)
@@ -318,7 +320,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     return stats
 
 
-def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title: str, axis):
+def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, counter: str, title: str, axis):
     keys = data.keys()
     values = data.values()
     count = len(values)
@@ -332,6 +334,11 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
     for key in data:
         percentage = (float(data[key] * 100) / float(total))
         labels.append('%s (%.2f%%)' % (key, percentage))
+    
+    if counter == 'classes':
+        total_count = len(data)
+    else:
+        total_count = total
 
     if graph_type == 'pie':
         # Set the color map and generate a properly sized color cycle
@@ -348,7 +355,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
         wedges, texts = axis.pie(values, counterclock=False, startangle=90)
         legend = axis.legend(wedges, labels, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
         axis.set_aspect('equal')
-        axis.set_title(f'{title} (total: {total})')
+        axis.set_title(f'{title} (total: {total_count})')
 
     elif graph_type == 'bar':
         y = [i for i in range(count)]
@@ -358,7 +365,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
         axis.set_yticklabels(keys)
         axis.invert_yaxis()
         axis.set_xlabel(legend)
-        axis.set_title(f'{title} (total: {total})')
+        axis.set_title(f'{title} (total: {total_count})')
 
         for bar in bars:
             width = bar.get_width()
@@ -412,7 +419,7 @@ def generate_figure(graphs: List[Graph], path: str):
         axis = [axis]
 
     for i,graph in enumerate(filtered):
-        __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.title, axis[i])
+        __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.counter, graph.title, axis[i])
     
     plot.tight_layout()
     plot.savefig(path, bbox_inches='tight')
@@ -505,11 +512,11 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
 
         if language_total is not None:
             total = language_total['total']
-            global_graphs['languages.svg'] = Graph(language_total, 0, 1, 'pie', 'Language', f'Language usage for all repositories in {owner}')
+            global_graphs['languages.svg'] = Graph(language_total, 0, 1, 'pie', 'Language', f'Language usage for all repositories in {owner}', 'classes')
 
             for repo in language_repo:
                 total = language_repo[repo]['total']
-                lang_by_repo[repo] = Graph(language_repo[repo], 0, 1, 'pie', 'Language', f'Language usage for repository {owner}/{repo}')
+                lang_by_repo[repo] = Graph(language_repo[repo], 0, 1, 'pie', 'Language', f'Language usage for repository {owner}/{repo}', 'classes')
 
         if lines_stats is not None:
             if use_cloc:
