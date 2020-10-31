@@ -472,7 +472,9 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                 global_graphs['sloc.svg'] = total_sloc
 
         for graph in sloc_by_repo:
-            generate_figure([repo_commits[graph], yearly_repo_commits[graph], sloc_by_repo[graph]], os.path.join(graph_dir, f'{graph}.svg'))
+            graphlist = [g[graph] for g in [repo_commits, yearly_repo_commits, sloc_by_repo] if len(g) > 0]
+
+            generate_figure(graphlist, os.path.join(graph_dir, f'{graph}.svg'))
 
         for graph in global_graphs:
             generate_figure([global_graphs[graph]], os.path.join(graph_dir, owner, graph))
