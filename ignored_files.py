@@ -4,6 +4,7 @@ ignored_files = [
     "^.*\.md$",
     "^.*\.xml$",
     "^.*\.svg$",
+    "^.*\.json$",
     "^LICENSE$",
     "^\.git.*",
     "\.min\.js",
@@ -12,5 +13,7 @@ ignored_files = [
     "^composer\.lock$",
     "^Pipfile$",
     "^Pipfile\.lock$",
-    "^bootstrap-dark.css$"
+    "^bootstrap-dark.css$",
+    "^build$",
+    "^node_modules$",
 ]
