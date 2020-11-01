@@ -24,19 +24,21 @@ class Graph:
                  min_count: int = 0,
                  kind: str = 'pie',
                  legend: str = 'Default graph legend',
-                 title: str = 'Default graph title'):
+                 title: str = 'Default graph title',
+                 counter: str = 'total'):
 
         self.minimum = minimum
         self.min_count = min_count
         self.kind = kind
         self.legend = legend
         self.title = title
+        self.counter = counter
         
         self.data = _normalize_data(data, minimum)
         self.count = len(self.data)
 
     def is_suitable(self) -> bool:
-        return True if len(self.data) >= self.min_count else False
+        return self.count >= self.min_count
 
 
 def raise_rate_limited_exception():
@@ -56,6 +58,7 @@ def get_repos(header: dict) -> list:
     # here is code that can handle n pages of repositories
     try:
         if not (dev_mode and os.path.isfile('repos.json')):
+            print("\n\nGetting repositories information...")
             response = requests.get(url, headers=header)
 
             # If in devmode, cache the response in case it does not yet exist
@@ -78,7 +81,7 @@ def get_repos(header: dict) -> list:
                     repos += [repo['name'] for repo in response.json() if not repo['archived'] and not repo['disabled']]
 
         else:
-            print('Using cache for repository information')
+            print('\n\nUsing cache for repository information')
             with open('repos.json', 'r') as f:
                 repos = [repo['name'] for repo in json.load(f) if not repo['archived'] and not repo['disabled']]
 
@@ -99,7 +102,7 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
         except FileExistsError:
             pass
 
-    print("\nGetting anonymous commits stats...")
+    print("\n\nGetting anonymous commits stats...")
     for i, repo in enumerate(repos):
         if(not (os.path.isfile(os.path.join('repo-stats', f'{repo}.anonymous.json')) and dev_mode)):
             response = requests.get(f"{url_api}/repos/{owner}/{repo}/stats/commit_activity", headers=header)
@@ -109,15 +112,16 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
                 with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'w') as f:
                     json.dump(response.json(), f)
 
-            print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
+            print(f"\t{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
             if response.status_code == 403:
                 raise_rate_limited_exception()
             elif response.status_code == 200:
                 stats[repo] = sum([weekly['total'] for weekly in response.json()])
                 stats['total'] += stats[repo]
+
         else:
-            print(f'Using cache for repo {repo}')
+            print(f"\t{i + 1}/{len(repos)} - {repo} - Using cached result...")
             with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'r') as f:
                 stats[repo] = sum([weekly['total'] for weekly in json.load(f)])
                 stats['total'] += stats[repo]
@@ -147,7 +151,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
                 with open(os.path.join('repo-stats', f'{repo}.json'), 'w') as f:
                     json.dump(response.json(), f)
 
-            print(f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
+            print(f"\t{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
             if response.status_code == 403:
                 raise_rate_limited_exception()
@@ -160,7 +164,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
                 return stats
 
         else:
-            print(f'Using cache for repo {repo}')
+            print(f"\t{i + 1}/{len(repos)} - {repo} - Using cached result...")
             with open(os.path.join('repo-stats', f'{repo}.json'), 'r') as f:
                 json_response = json.load(f)
 
@@ -226,13 +230,19 @@ def _find_ignored_files(repo: str) -> list:
     return output
 
 
-def get_lines_stats(repos: list, use_cloc: bool) -> dict:
+def get_lines_stats(repos: list, use_cloc: bool):
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
+
+    lang_by_repo = {}
+    lang_total = {}
+
+    if use_cloc:
+        lang_total['total'] = 0
 
     if not (dev_mode and keep_repos):
         _cleanup_repos(repos)
 
-    print("\nGetting SLOC stats...")
+    print("Getting SLOC stats...")
 
     try:
         os.mkdir('repos')
@@ -241,7 +251,8 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
     for i, repo in enumerate(repos):
         if not os.path.isdir(os.path.join('repos', repo)):
-            run(f"git clone {url_clone}/{owner}/{repo} {os.path.join('repos', repo)}".split())
+            with open(os.devnull, "w") as sink:
+                run(f"git clone {url_clone}/{owner}/{repo} {os.path.join('repos', repo)}".split(), stdout=sink, stderr=sink)
 
         ignored_list = _find_ignored_files(repo)
 
@@ -251,18 +262,39 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
                     for element in ignored_list:
                         clocignore.write(f'{element}\n')
 
-                cloc_out = run(f"cloc --csv --exclude-list-file=../../clocignore .",
+                output = run(f"cloc --csv --hide-rate --quiet --exclude-list-file=../../clocignore .",
                                shell=True,
                                text=True,
                                capture_output=True,
-                               cwd=os.path.join('repos', repo)).stdout.splitlines()[-1]
-                try:
+                               cwd=os.path.join('repos', repo)).stdout.splitlines()[2:]
+
+                lang_by_repo[repo] = {}
+                lang_by_repo[repo]['total'] = 0
+
+                for line in output:
+                    language,blank,comment,code = line.split(',')[-4:]
+
+                    if language == 'SUM':
+                        continue
+
+                    lang_by_repo[repo][language] = int(code)
+                    lang_by_repo[repo]['total'] += int(code)
+
+                    if language not in lang_total:
+                        lang_total[language] = 0
+
+                    lang_total[language] += int(code)
+                    lang_total['total'] += int(code)
+
+                if len(output) > 0:
+                    total_sloc = output[-1]
+
                     stats[repo] = {
-                        'sloc': int(cloc_out.split(",")[-1]) or 0,
-                        'comments': int(cloc_out.split(",")[-2]) or 0,
-                        'blanks': int(cloc_out.split(",")[-3]) or 0,
+                        'sloc': int(total_sloc.split(",")[-1]) or 0,
+                        'comments': int(total_sloc.split(",")[-2]) or 0,
+                        'blanks': int(total_sloc.split(",")[-3]) or 0,
                     }
-                except ValueError:  # there are no lines in this repository
+                else:  # there are no lines in this repository
                     stats[repo] = {
                         'sloc': 0,
                         'comments': 0,
@@ -303,7 +335,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
 
             stats['total'] += stats[repo]
 
-        print(f"{i + 1}/{len(repos)} -- {stats[repo]['sloc'] if use_cloc else stats[repo]} "
+        print(f"\t{i + 1}/{len(repos)} -- {stats[repo]['sloc'] if use_cloc else stats[repo]} "
               f"total non-blank lines in repo {repo}")
 
         if not (dev_mode and keep_repos):
@@ -315,10 +347,10 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     if use_cloc:
         run("rm -f clocignore".split())
 
-    return stats
+    return stats, lang_by_repo, lang_total
 
 
-def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, title: str, axis):
+def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, counter: str, title: str, axis):
     keys = data.keys()
     values = data.values()
     count = len(values)
@@ -331,7 +363,12 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
     
     for key in data:
         percentage = (float(data[key] * 100) / float(total))
-        labels.append('%s (%.2f%%)' % (key, percentage))
+        labels.append(f'{key} ({percentage:.2f}%)')
+
+    if counter == 'classes':
+        total_count = len(data)
+    else:
+        total_count = total
 
     if graph_type == 'pie':
         # Set the color map and generate a properly sized color cycle
@@ -348,7 +385,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
         wedges, texts = axis.pie(values, counterclock=False, startangle=90)
         legend = axis.legend(wedges, labels, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
         axis.set_aspect('equal')
-        axis.set_title(f'{title} (total: {total})')
+        axis.set_title(f'{title} (total: {total_count})')
 
     elif graph_type == 'bar':
         y = [i for i in range(count)]
@@ -358,7 +395,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
         axis.set_yticklabels(keys)
         axis.invert_yaxis()
         axis.set_xlabel(legend)
-        axis.set_title(f'{title} (total: {total})')
+        axis.set_title(f'{title} (total: {total_count})')
 
         for bar in bars:
             width = bar.get_width()
@@ -366,24 +403,26 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, tit
 
 
 def _normalize_data(data: dict, min_value: float):
+    result = dict(data)
+
     # Remove summatory keys from the dictionary.
     # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
-    data.pop('total', 'nope')
-    data.pop('past_year', 'nope')
+    result.pop('total', 'nope')
+    result.pop('past_year', 'nope')
 
     other = 0
 
-    for key in list(data.keys()):
-        if data[key] < min_value:
-            other += data.pop(key)
+    for key in list(result.keys()):
+        if result[key] < min_value:
+            other += result.pop(key)
 
     # Order data dictionary by size of elements
-    data = {k:v for k,v in sorted(data.items(), key=lambda x: int(x[1]), reverse=True)}
+    result = {k:v for k,v in sorted(result.items(), key=lambda x: int(x[1]), reverse=True)}
 
     if other > 0:
-        data['other'] = other
+        result['other'] = other
     
-    return data
+    return result
 
 
 def generate_figure(graphs: List[Graph], path: str):
@@ -401,7 +440,7 @@ def generate_figure(graphs: List[Graph], path: str):
             heights.append((0.3 * graph.count))
 
     figure, axis = plot.subplots(len(filtered),
-                                 figsize=(12, sum(heights)),
+                                 figsize=(12, sum(heights) + 1),
                                  dpi=600,
                                  gridspec_kw={'height_ratios': [h / heights[0] for h in heights]})
 
@@ -410,11 +449,60 @@ def generate_figure(graphs: List[Graph], path: str):
         axis = [axis]
 
     for i,graph in enumerate(filtered):
-        __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.title, axis[i])
+        __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.counter, graph.title, axis[i])
     
     plot.tight_layout()
     plot.savefig(path, bbox_inches='tight')
     plot.close(figure)
+
+
+def get_language_stats(repos: list, header: dict):
+    langs_by_repo = {}
+    langs_total = {}
+
+    langs_total['total'] = 0
+
+    print("\n\nGetting language usage information...")
+
+    for i, repo in enumerate(repos):
+        if not (dev_mode and os.path.isfile(os.path.join('repo-stats', f'{repo}.languages.json'))):
+            try:
+                response = requests.get(f'{url_api}/repos/{owner}/{repo}/languages', headers=header)
+                json_data = response.json()
+            except TypeError:
+                raise_rate_limited_exception()
+
+            # If in devmode, cache the response in case it does not yet exist
+            if dev_mode:
+                with open(os.path.join('repo-stats', f'{repo}.languages.json'), 'w') as f:
+                    json.dump(json_data, f)
+
+            print(f"\t{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Error!'}")
+
+        else:
+            print(f"\t{i + 1}/{len(repos)} - {repo} - Using cached result...")
+            with open(os.path.join('repo-stats', f'{repo}.languages.json'), 'r') as f:
+                json_data = json.load(f)
+        
+        langs_by_repo[repo] = {}
+        languages_sum = 0
+
+        for language in json_data:
+            if language not in langs_total:
+                langs_total[language] = 0
+
+            if language not in langs_by_repo:
+                langs_by_repo[repo][language] = 0
+
+            langs_by_repo[repo][language] = int(json_data[language])
+            languages_sum += int(json_data[language])
+
+            langs_total[language] += int(json_data[language])
+            langs_total['total'] += int(json_data[language])
+        
+        langs_by_repo[repo]['total'] = languages_sum
+    
+    return langs_total, langs_by_repo
 
 
 def _make_directory(path: str):
@@ -424,12 +512,10 @@ def _make_directory(path: str):
         pass
 
 
-def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: dict, use_cloc: bool, generate_graphs: bool):
+def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contributors_stats: dict, language_total: dict, language_repo: dict, use_cloc: bool, generate_graphs: bool):
     _make_directory(output_dir)
 
     if generate_graphs:
-        print("\nGenerating graphs...")
-
         timestamp = datetime.now().strftime("%Y-%m-%d %H.%M.%S.%f")
         graph_dir = os.path.join(output_dir, timestamp)
         _make_directory(graph_dir)
@@ -440,21 +526,30 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
         yearly_repo_commits = {}
         repo_commits = {}
         sloc_by_repo = {}
+        lang_by_repo = {}
 
         if commits_stats is not None:
-            yearly_commits_by_repo = Graph(dict(commits_stats), 10, 1, 'pie', 'Repositories', 'Commits in the last year by repository')
+            yearly_commits_by_repo = Graph(commits_stats, 10, 1, 'pie', 'Repositories', 'Commits in the last year by repository')
             global_graphs['yearly_commits_by_repo.svg'] = yearly_commits_by_repo
 
         if contributors_stats is not None:
-            yearly_commits_by_contributor = Graph(dict(contributors_stats['past_year']), 1, 1, 'bar', 'Commits', 'Commits in the last year by contributor')
-            commits_by_contributor = Graph(dict(contributors_stats['total']), 1, 1, 'bar', 'Commits', 'Commits by contributor')
+            yearly_commits_by_contributor = Graph(contributors_stats['past_year'], 1, 1, 'bar', 'Commits', 'Commits in the last year by contributor')
+            commits_by_contributor = Graph(contributors_stats['total'], 1, 1, 'bar', 'Commits', 'Commits by contributor')
             global_graphs['yearly_commits_by_contributor.svg'] = yearly_commits_by_contributor
             global_graphs['commits_by_contributor.svg'] = commits_by_contributor
 
             for repo in contributors_stats:
                 if repo not in ['total', 'past_year']:
-                    yearly_repo_commits[repo] = Graph(dict(contributors_stats[repo]['total']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor')
-                    repo_commits[repo] = Graph(dict(contributors_stats[repo]['past_year']), 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor')
+                    yearly_repo_commits[repo] = Graph(contributors_stats[repo]['total'], 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor')
+                    repo_commits[repo] = Graph(contributors_stats[repo]['past_year'], 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor')
+
+        if language_total is not None:
+            total = language_total['total']
+            global_graphs['languages.svg'] = Graph(language_total, 0, 1, 'pie', 'Language', f'Language usage for all repositories in {owner}', 'classes')
+
+            for repo in language_repo:
+                total = language_repo[repo]['total']
+                lang_by_repo[repo] = Graph(language_repo[repo], 0, 1, 'pie', 'Language', f'Language usage for repository {owner}/{repo}', 'classes')
 
         if lines_stats is not None:
             if use_cloc:
@@ -464,21 +559,26 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
 
                 for repo in lines_stats:
                     if repo != 'total':
-                        sloc_by_repo[repo] = Graph(dict(lines_stats[repo]), 1, 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}')
+                        sloc_by_repo[repo] = Graph(lines_stats[repo], 1, 1, 'pie', 'Type', f'Line distribution for repository {owner}/{repo}')
 
             else:
                 minimum = lines_stats['total'] * 0.005
-                total_sloc = Graph(dict(lines_stats), minimum, 1, 'pie', 'Repository', 'SLOC count by repository')
+                total_sloc = Graph(lines_stats, minimum, 1, 'pie', 'Repository', 'SLOC count by repository')
                 global_graphs['sloc.svg'] = total_sloc
 
-        for graph in sloc_by_repo:
-            graphlist = [g[graph] for g in [repo_commits, yearly_repo_commits, sloc_by_repo] if len(g) > 0]
-
+        print("\n\nGenerating repo-specific graphs...")
+        for i, graph in enumerate(repos):
+            graphlist = [g[graph] for g in [repo_commits, yearly_repo_commits, sloc_by_repo, lang_by_repo] if len(g) > 0]
             generate_figure(graphlist, os.path.join(graph_dir, f'{graph}.svg'))
 
-        for graph in global_graphs:
-            generate_figure([global_graphs[graph]], os.path.join(graph_dir, owner, graph))
+            print(f"\t{i + 1}/{len(repos)} - {graph}.svg")
 
+        print("\nGenerating general graphs...")
+        for i, graph in enumerate(global_graphs):
+            generate_figure([global_graphs[graph]], os.path.join(graph_dir, owner, graph))
+            print(f"\t{i + 1}/{len(global_graphs)} - {os.path.join(owner, graph)}")
+
+        print("\nGenerating combined graph...")
         generate_figure(global_graphs.values(), os.path.join(graph_dir, owner, 'combined.svg'))
 
     if commits_stats is not None:
@@ -486,7 +586,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                                     for repo in commits_stats
                                     if repo != "total"])
 
-        commits_output += f"\nTotal commits of past year: {commits_stats['total']}"
+        commits_output += f"\n\nTotal commits of past year: {commits_stats['total']}"
     else:
         commits_output = "No commits stats, as you've selected at the beginning."
 
@@ -534,7 +634,7 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
                                       f"{lines_stats[repo]['sloc'] + lines_stats[repo]['comments'] + lines_stats[repo]['blanks']} total"
                                       for repo in lines_stats
                                       if repo != "total"])
-            lines_output += f"\nTotal SLOC: {lines_stats['total']['sloc']}" \
+            lines_output += f"\n\nTotal SLOC: {lines_stats['total']['sloc']}" \
                             f"\nTotal lines including comments and blanks: {lines_stats['total']['all']}"
 
         else:
@@ -545,7 +645,22 @@ def print_all_stats(commits_stats: dict, lines_stats: dict, contributors_stats: 
     else:
         lines_output = "No SLOC stats, as you've selected at the beginning."
 
-    output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output])
+    if language_repo is not None:
+        language_output = 'Language usage by repository:\n'
+
+        for repo in language_repo:
+            if language_repo[repo]['total'] == 0:
+                continue
+
+            languages = {language:((100 * language_repo[repo][language])/language_repo[repo]['total']) for language in language_repo[repo]}
+            language_output += f'\t{repo}: {", ".join([f"{k} ({languages[k]:.2f}%)" for k in languages if k != "total"])}\n'
+
+        language_output += f'\nTotal language usage across all {owner} repositories:\n'
+        language_output += '\n'.join(sorted([f"\t{language} ({(100 * language_total[language])/language_total['total']:.2f}%)" for language in language_total if language != 'total'], key=lambda x: language_total[" ".join(x.split()[:-1])], reverse=True))
+    else:
+        language_output = "No language stats, as you've selected at the beginning."
+
+    output = "\n\n".join([contributors_output, '*' * 42, commits_output, '*' * 42, lines_output, '*' * 42, language_output])
     print(f"\n\n{output}")
 
     output_path = os.path.join(output_dir, f'{output_file} {datetime.now()}.txt') if not generate_graphs \
@@ -577,6 +692,10 @@ def main():
     graph_group.add_argument('--graphs', action='store_true', default=None, help="Generate graphs.")
     graph_group.add_argument('--no-graphs', action='store_true', default=None, help="Do not generate graphs.")
 
+    graph_group = parser.add_argument_group('Generate language usage statistics').add_mutually_exclusive_group(required=False)
+    graph_group.add_argument('--lang', action='store_true', default=None, help="Generate langauge statistics.")
+    graph_group.add_argument('--no-lang', action='store_true', default=None, help="Do not generate language statistics.")
+
     parser.add_argument('-p', '--ping', required=False, default=None, action='store_true',
                                         help='Re-trigger stats generation on GitHub servers. Useful with cron.')
 
@@ -604,6 +723,14 @@ def main():
         else:
             get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
 
+        # If CLOC is being used, ignore API based language statistics
+        if (args.lang or args.no_lang) and not (use_cloc and get_lines):
+            get_languages = args.lang
+        elif not (use_cloc and get_lines):
+            get_languages = input("Do you want to generate language statistics? y/N ").lower() == 'y'
+        else:
+            get_languages = False
+
         if args.graphs or args.no_graphs:
             generate_graphs = args.graphs
         else:
@@ -614,11 +741,12 @@ def main():
     repos = get_repos(header)
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
-    lines_stats = get_lines_stats(repos, use_cloc) if get_lines else None
+    lines_stats, cloc_language_repo, cloc_language_total = get_lines_stats(repos, use_cloc) if get_lines else (None, None, None)
+    language_total, language_repo = get_language_stats(repos, header) if (get_languages and not use_cloc) else (None, None)
     
     if not args.ping:    
-        print_all_stats(commits_stats, lines_stats, contributors_stats, use_cloc, generate_graphs)
-        print(f"\nDone. You can see the results in the {output_dir} directory.")
+        print_all_stats(repos, commits_stats, lines_stats, contributors_stats, cloc_language_total or language_total, cloc_language_repo or language_repo, use_cloc, generate_graphs)
+        print(f"\n\n\nDone. You can see the results in the {output_dir} directory.")
 
 
 if __name__ == "__main__":
