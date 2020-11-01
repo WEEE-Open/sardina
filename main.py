@@ -38,7 +38,7 @@ class Graph:
         self.count = len(self.data)
 
     def is_suitable(self) -> bool:
-        return True if self.count >= self.min_count else False
+        return self.count >= self.min_count
 
 
 def raise_rate_limited_exception():
@@ -121,7 +121,7 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
                 stats['total'] += stats[repo]
 
         else:
-            print("\t" f"{i + 1}/{len(repos)} - {repo} - Using cached result...")
+            print(f"\t{i + 1}/{len(repos)} - {repo} - Using cached result...")
             with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'r') as f:
                 stats[repo] = sum([weekly['total'] for weekly in json.load(f)])
                 stats['total'] += stats[repo]
@@ -653,7 +653,7 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
                 continue
 
             languages = {language:((100 * language_repo[repo][language])/language_repo[repo]['total']) for language in language_repo[repo]}
-            language_output += '\t' f'{repo}: {", ".join(["%s (%.2f%%)" % (k, languages[k]) for k in languages if k != "total"])}\n'
+            language_output += f'\t{repo}: {", ".join(["{k} ({languages[k]:.2f}%)" for k in languages if k != "total"])}\n'
 
         language_output += f'\nTotal language usage across all {owner} repositories:\n'
         language_output += '\n'.join(sorted(["\t%s (%.2f%%)" % (language, (100 * language_total[language])/language_total['total']) for language in language_total if language != 'total'], key=lambda x: language_total[" ".join(x.split()[:-1])], reverse=True))
