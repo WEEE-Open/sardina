@@ -228,8 +228,14 @@ def _find_ignored_files(repo: str) -> list:
     return output
 
 
-def get_lines_stats(repos: list, use_cloc: bool) -> dict:
+def get_lines_stats(repos: list, use_cloc: bool, get_languages: bool):
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
+
+    lang_by_repo = {}
+    lang_total = {}
+
+    if not get_languages:
+        lang_total['total'] = 0
 
     if not (dev_mode and keep_repos):
         _cleanup_repos(repos)
@@ -253,18 +259,41 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
                     for element in ignored_list:
                         clocignore.write(f'{element}\n')
 
-                cloc_out = run(f"cloc --csv --exclude-list-file=../../clocignore .",
+                output = run(f"cloc --csv --hide-rate --quiet --exclude-list-file=../../clocignore .",
                                shell=True,
                                text=True,
                                capture_output=True,
-                               cwd=os.path.join('repos', repo)).stdout.splitlines()[-1]
-                try:
+                               cwd=os.path.join('repos', repo)).stdout.splitlines()[2:]
+                
+
+                if not get_languages:
+                    lang_by_repo[repo] = {}
+                    lang_by_repo[repo]['total'] = 0
+
+                    for line in output:
+                        language,blank,comment,code = line.split(',')[-4:]
+
+                        if language == 'SUM':
+                            continue
+                        
+                        lang_by_repo[repo][language] = int(code)
+                        lang_by_repo[repo]['total'] += int(code)
+
+                        if language not in lang_total:
+                            lang_total[language] = 0
+                        
+                        lang_total[language] += int(code)
+                        lang_total['total'] += int(code)
+
+                if len(output) > 0:
+                    total_sloc = output[-1]
+
                     stats[repo] = {
-                        'sloc': int(cloc_out.split(",")[-1]) or 0,
-                        'comments': int(cloc_out.split(",")[-2]) or 0,
-                        'blanks': int(cloc_out.split(",")[-3]) or 0,
+                        'sloc': int(total_sloc.split(",")[-1]) or 0,
+                        'comments': int(total_sloc.split(",")[-2]) or 0,
+                        'blanks': int(total_sloc.split(",")[-3]) or 0,
                     }
-                except ValueError:  # there are no lines in this repository
+                else:  # there are no lines in this repository
                     stats[repo] = {
                         'sloc': 0,
                         'comments': 0,
@@ -317,7 +346,7 @@ def get_lines_stats(repos: list, use_cloc: bool) -> dict:
     if use_cloc:
         run("rm -f clocignore".split())
 
-    return stats
+    return stats, lang_by_repo, lang_total
 
 
 def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, counter: str, title: str, axis):
@@ -334,7 +363,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, cou
     for key in data:
         percentage = (float(data[key] * 100) / float(total))
         labels.append('%s (%.2f%%)' % (key, percentage))
-    
+
     if counter == 'classes':
         total_count = len(data)
     else:
@@ -671,9 +700,9 @@ def main():
             get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
 
         if args.lang or args.no_lang:
-            get_language = args.lang
+            get_languages = args.lang
         else:
-            get_language = input("Do you want to language statistics? y/N ").lower() == 'y'
+            get_languages = input("Do you want to language statistics? y/N ").lower() == 'y'
 
         if args.graphs or args.no_graphs:
             generate_graphs = args.graphs
@@ -685,11 +714,11 @@ def main():
     repos = get_repos(header)
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
-    lines_stats = get_lines_stats(repos, use_cloc) if get_lines else None
-    language_total, language_repo = get_language_stats(repos, header) if get_language else None
+    lines_stats, cloc_language_repo, cloc_language_total = get_lines_stats(repos, use_cloc, get_languages) if get_lines else (None, None, None)
+    language_total, language_repo = get_language_stats(repos, header) if get_languages else (None, None)
     
     if not args.ping:    
-        print_all_stats(repos, commits_stats, lines_stats, contributors_stats, language_total, language_repo, use_cloc, generate_graphs)
+        print_all_stats(repos, commits_stats, lines_stats, contributors_stats, language_total or cloc_language_total, language_repo or cloc_language_repo, use_cloc, generate_graphs)
         print(f"\nDone. You can see the results in the {output_dir} directory.")
 
 
