@@ -724,9 +724,9 @@ def main():
             get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
 
         # If CLOC is being used, ignore API based language statistics
-        if (args.lang or args.no_lang) and not use_cloc:
+        if (args.lang or args.no_lang) and not (use_cloc and get_lines):
             get_languages = args.lang
-        elif not use_cloc:
+        elif not (use_cloc and get_lines):
             get_languages = input("Do you want to generate language statistics? y/N ").lower() == 'y'
         else:
             get_languages = False
