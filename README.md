@@ -4,11 +4,12 @@ Statistiche Amabili Rendimento Degli Informatici Nell’Anno
 ## What
 
 A Python script to quickly compute how much we've worked in terms of:
-- yearly commits
-- contributors commits
-- LOC  
+- Yearly commits
+- Contributors commits
+- Lines of code (LOC)
+- Language usage statistics
 
-all three both per repository and total. And it also generates cool graphs!
+all four both per repository and total. And it also generates cool graphs!
 
 ![combined stats graphs](docs/combined.svg)
 
@@ -46,42 +47,57 @@ You can skip this step if you want and use the script without a PAT, but you wil
 
 The configuration is done in `config.py`. There you can paste your PAT generated at the previous step, and configure for which owner you want to see the stats (either a user or an organization), where you want to save the output, and if you want to run the script in development mode.
 
-`git clone https://github.com/weee-open/sardina`  
-`cd sardina`  
-optional: `python3 -m venv venv`  
-optional: `source venv/bin/activate`  
-`pip install -r requirements.txt`  
-`vim config.py`  
-`python main.py`  
-optional: `deactivate`
+``` shell script
+git clone https://github.com/weee-open/sardina
+cd sardina
+
+# Optional: if you want to use a virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+vim config.py
+./main.py
+
+# If you opted to use a virtual environment
+deactivate
+```
 
 ### Command line options
 ```shell script
 ./main.py --help                               
-usage: main.py [-h] [--cloc | --wc] [--commits | --no-commits] [--sloc | --no-sloc] [--graphs | --no-graphs] [-p]
+usage: main.py [-h] [--cloc | --wc] [--commits | --no-commits] [--sloc | --no-sloc] [--graphs | --no-graphs] [--lang | --no-lang] [-p]
 
 S.A.R.D.I.N.A. - Statistiche Amabili Rendimento Degli Informatici Nell'Anno
 
 optional arguments:
-  -h, --help    show this help message and exit
-  -p, --ping    Re-trigger stats generation on GitHub servers. Useful with cron.
+-h, --help    show this help message and exit
+-p, --ping    Re-trigger stats generation on GitHub servers. Useful with cron.
 
 Software to use to count lines of code:
-  --cloc        Use CLOC to count SLOC.
-  --wc          Use WC to count SLOC.
+--cloc        Use CLOC to count SLOC.
+--wc          Use WC to count SLOC.
 
 Count contributions to all repositories:
-  --commits     Count commits.
-  --no-commits  Do not count commits.
+--commits     Count commits.
+--no-commits  Do not count commits.
 
 Count SLOC (source lines of code) of repositories:
-  --sloc        Count SLOC.
-  --no-sloc     Do not count SLOC.
+--sloc        Count SLOC.
+--no-sloc     Do not count SLOC.
 
 Generate graphs for the gathered statistics:
-  --graphs      Generate graphs.
-  --no-graphs   Do not generate graphs.
+--graphs      Generate graphs.
+--no-graphs   Do not generate graphs.
+
+Generate language usage statistics:
+--lang        Generate langauge statistics.
+--no-lang     Do not generate language statistics.
 ```
+
+## Language usage statistics
+
+If SLOC are being counted and `cloc` is being used for that task, language statistics are always generated using CLOC itself independently of the `--lang` or `--no-lang` command line option (in this scenario no prompt is presented in interactive mode either). If SLOC are not being counted or `wc` is being used for that task, then language statistics are generated using GitHub's APIs only if the `--lang` option is specified. This happens because cloc is much more precise in counting the language usage than GitHub's APIs, and also is free in terms of API requests and Internet usage.
 
 ## Development
 
