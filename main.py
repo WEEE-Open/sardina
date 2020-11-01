@@ -363,7 +363,7 @@ def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, cou
     
     for key in data:
         percentage = (float(data[key] * 100) / float(total))
-        labels.append('%s (%.2f%%)' % (key, percentage))
+        labels.append(f'{key} ({percentage:.2f}%)')
 
     if counter == 'classes':
         total_count = len(data)
@@ -653,10 +653,10 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
                 continue
 
             languages = {language:((100 * language_repo[repo][language])/language_repo[repo]['total']) for language in language_repo[repo]}
-            language_output += f'\t{repo}: {", ".join(["{k} ({languages[k]:.2f}%)" for k in languages if k != "total"])}\n'
+            language_output += f'\t{repo}: {", ".join([f"{k} ({languages[k]:.2f}%)" for k in languages if k != "total"])}\n'
 
         language_output += f'\nTotal language usage across all {owner} repositories:\n'
-        language_output += '\n'.join(sorted(["\t%s (%.2f%%)" % (language, (100 * language_total[language])/language_total['total']) for language in language_total if language != 'total'], key=lambda x: language_total[" ".join(x.split()[:-1])], reverse=True))
+        language_output += '\n'.join(sorted([f"\t{language} ({(100 * language_total[language])/language_total['total']:.2f}%)" for language in language_total if language != 'total'], key=lambda x: language_total[" ".join(x.split()[:-1])], reverse=True))
     else:
         language_output = "No language stats, as you've selected at the beginning."
 
