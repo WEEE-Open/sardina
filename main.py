@@ -656,7 +656,7 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
             language_output += '\t' f'{repo}: {", ".join(["%s (%.2f%%)" % (k, languages[k]) for k in languages if k != "total"])}\n'
 
         language_output += f'\nTotal language usage across all {owner} repositories:\n'
-        language_output += '\n'.join(["\t%s (%.2f%%)" % (language, (100 * language_total[language])/language_total['total']) for language in language_total if language != 'total'])
+        language_output += '\n'.join(sorted(["\t%s (%.2f%%)" % (language, (100 * language_total[language])/language_total['total']) for language in language_total if language != 'total'], key=lambda x: language_total[" ".join(x.split()[:-1])], reverse=True))
     else:
         language_output = "No language stats, as you've selected at the beginning."
 
