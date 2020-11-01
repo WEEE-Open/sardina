@@ -112,7 +112,7 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
                 with open(os.path.join('repo-stats', f'{repo}.anonymous.json'), 'w') as f:
                     json.dump(response.json(), f)
 
-            print("\t" f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
+            print(f"\t{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
             if response.status_code == 403:
                 raise_rate_limited_exception()
@@ -151,7 +151,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
                 with open(os.path.join('repo-stats', f'{repo}.json'), 'w') as f:
                     json.dump(response.json(), f)
 
-            print("\t" f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
+            print(f"\t{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Awaiting new data...'}")
 
             if response.status_code == 403:
                 raise_rate_limited_exception()
@@ -164,7 +164,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
                 return stats
 
         else:
-            print("\t" f"{i + 1}/{len(repos)} - {repo} - Using cached result...")
+            print(f"\t{i + 1}/{len(repos)} - {repo} - Using cached result...")
             with open(os.path.join('repo-stats', f'{repo}.json'), 'r') as f:
                 json_response = json.load(f)
 
@@ -335,7 +335,7 @@ def get_lines_stats(repos: list, use_cloc: bool):
 
             stats['total'] += stats[repo]
 
-        print("\t" f"{i + 1}/{len(repos)} -- {stats[repo]['sloc'] if use_cloc else stats[repo]} "
+        print(f"\t{i + 1}/{len(repos)} -- {stats[repo]['sloc'] if use_cloc else stats[repo]} "
               f"total non-blank lines in repo {repo}")
 
         if not (dev_mode and keep_repos):
@@ -477,10 +477,10 @@ def get_language_stats(repos: list, header: dict):
                 with open(os.path.join('repo-stats', f'{repo}.languages.json'), 'w') as f:
                     json.dump(json_data, f)
 
-            print("\t" f"{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Error!'}")
+            print(f"\t{i + 1}/{len(repos)} - {repo} - {'OK' if response.status_code == 200 else 'Error!'}")
 
         else:
-            print("\t" f"{i + 1}/{len(repos)} - {repo} - Using cached result...")
+            print(f"\t{i + 1}/{len(repos)} - {repo} - Using cached result...")
             with open(os.path.join('repo-stats', f'{repo}.languages.json'), 'r') as f:
                 json_data = json.load(f)
         
@@ -571,12 +571,12 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
             graphlist = [g[graph] for g in [repo_commits, yearly_repo_commits, sloc_by_repo, lang_by_repo] if len(g) > 0]
             generate_figure(graphlist, os.path.join(graph_dir, f'{graph}.svg'))
 
-            print("\t" f"{i + 1}/{len(repos)} - {graph}.svg")
+            print(f"\t{i + 1}/{len(repos)} - {graph}.svg")
 
         print("\nGenerating general graphs...")
         for i, graph in enumerate(global_graphs):
             generate_figure([global_graphs[graph]], os.path.join(graph_dir, owner, graph))
-            print("\t" f"{i + 1}/{len(global_graphs)} - {os.path.join(owner, graph)}")
+            print(f"\t{i + 1}/{len(global_graphs)} - {os.path.join(owner, graph)}")
 
         print("\nGenerating combined graph...")
         generate_figure(global_graphs.values(), os.path.join(graph_dir, owner, 'combined.svg'))
