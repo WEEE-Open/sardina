@@ -7,13 +7,13 @@ CRON="docker run --rm -itd sardina-cron"
 
 rebuild_sardina_image_if_does_not_exist() {
   if [[ -z  $(docker image ls | grep "sardina ") ]]; then
-    "$BUILD_RUN"
+    $BUILD_RUN
   fi
 }
 
 rebuild_sardina_cron_image_if_does_not_exist() {
   if [[ -z  $(docker image ls | grep "sardina-cron ") ]]; then
-    "$BUILD_CRON"
+    $BUILD_CRON
   fi
 }
 
@@ -22,13 +22,13 @@ run_sardina_docker() {
   if [ ! -d output ]; then
     mkdir output
   fi
-  "$RUN"
+  $RUN
   exit 0
 }
 
 run_sardina_cron_docker() {
   rebuild_sardina_cron_image_if_does_not_exist
-  "$CRON"
+  $CRON
   exit 0
 }
 
