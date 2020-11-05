@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 BUILD_RUN="docker build -f Dockerfile.run -t sardina ."
 BUILD_CRON="docker build -f Dockerfile.cron -t sardina-cron ."
 RUN="docker run --rm -v $PWD/output:/root/sardina/output -it sardina"
