@@ -5,7 +5,7 @@ set -e
 BUILD_RUN="docker build -f Dockerfile.run -t sardina ."
 BUILD_CRON="docker build -f Dockerfile.cron -t sardina-cron ."
 RUN="docker run --rm -v $PWD/output:/root/sardina/output -it sardina"
-CRON="docker run --rm -itd sardina-cron --name sardina-cron"
+CRON="docker run --rm  --name sardina-cron -itd sardina-cron"
 
 rebuild_sardina_image_if_does_not_exist() {
   if [[ -z  $(docker image ls | grep "sardina ") ]]; then
