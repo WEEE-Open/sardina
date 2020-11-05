@@ -705,6 +705,7 @@ def main():
         use_cloc = True    # We don't need this but this way we avoid the prompt (since this is intended for automated operation)
         get_commits = True
         get_lines = False
+        get_languages = False
         generate_graphs = False
     else:
         if args.cloc or args.wc:
