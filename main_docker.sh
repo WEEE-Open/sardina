@@ -19,6 +19,9 @@ rebuild_sardina_cron_image_if_does_not_exist() {
 
 run_sardina_docker() {
   rebuild_sardina_image_if_does_not_exist
+  if [ ! -d output ]; then
+    mkdir output
+  fi
   "$RUN"
   exit 0
 }
