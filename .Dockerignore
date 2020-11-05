@@ -1,0 +1,7 @@
+.git/
+output/
+repo-stats/
+venv/
+github_pat.py
+repos.json
+stats*
