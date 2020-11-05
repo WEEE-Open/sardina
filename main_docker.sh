@@ -9,12 +9,16 @@ CRON="docker run --rm -itd sardina-cron"
 
 rebuild_sardina_image_if_does_not_exist() {
   if [[ -z  $(docker image ls | grep "sardina ") ]]; then
+    echo "sardina Docker image not found. Rebuilding..."
+    echo ""
     $BUILD_RUN
   fi
 }
 
 rebuild_sardina_cron_image_if_does_not_exist() {
   if [[ -z  $(docker image ls | grep "sardina-cron ") ]]; then
+    echo "sardina-cron Docker image not found. Rebuilding..."
+    echo ""
     $BUILD_CRON
   fi
 }
@@ -25,12 +29,16 @@ run_sardina_docker() {
     mkdir output
   fi
   $RUN
+  echo "See output files in output directory/<timestamp>"
   exit 0
 }
 
 run_sardina_cron_docker() {
   rebuild_sardina_cron_image_if_does_not_exist
   $CRON
+  echo "Cron is running inside the container with the hash above every 5 minutes"
+  echo "To stop and remove: docker stop <hash>"
+  echo "To see logs: docker logs --follow <hash>"
   exit 0
 }
 
