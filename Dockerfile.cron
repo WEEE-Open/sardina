@@ -1,19 +1,11 @@
-# TODO: replace with FROM sardina:latest and remove sardina configuration when images pushed to Docker Hub - add apt install -y cron
-FROM ubuntu:latest
-
-# configure sardina
-COPY . /root/sardina
-WORKDIR /root/sardina
-RUN sed -i 's/YOUR TOKEN HERE/678295b244450815fb0491faab71f7f073db5dc1/g' config.py
-RUN apt update
-RUN apt full-upgrade -y
-RUN apt install -y cloc cron git python3-pip
-RUN pip3 install -r requirements.txt
+FROM docker.caste.dev/sardina:latest
 
 # configure cron - see https://stackoverflow.com/questions/37458287/how-to-run-a-cron-job-inside-a-docker-container
 # &>> does NOT work (no output at all)
 # adding \\n at the end of the echo string outputs logs to /var/log/cron.logn - no empty line at the end still works though
-RUN (crontab -l; echo "*/5 * * * * python3 -u /root/sardina/main.py --ping >> /var/log/cron.log 2>&1") | crontab
+RUN apt update
+RUN apt install -y cron
+RUN (crontab -l; echo "*/5 * * * * python3 -u /sardina/main.py --ping >> /var/log/cron.log 2>&1") | crontab
 RUN touch /var/log/cron.log
 
 CMD cron && tail -f /var/log/cron.log
