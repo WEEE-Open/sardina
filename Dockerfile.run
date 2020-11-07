@@ -6,7 +6,7 @@ RUN apt update
 RUN apt full-upgrade -y
 RUN apt install -y cloc git python3-pip
 RUN pip3 install -r requirements.txt
-CMD python3 /sardina/main.py --cloc --commits --sloc --graphs --lang
+CMD ["python3", "/sardina/main.py", "--cloc", "--commits", "--sloc", "--graphs", "--lang"]
 # build with:
 #   docker build -f Dockerfile.run -t sardina .
 # run with:
