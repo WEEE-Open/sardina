@@ -1,25 +1,40 @@
 #!/bin/bash
 
-set -e
+HUB="docker.caste.dev"
 
 BUILD_RUN="docker build -f Dockerfile.run -t sardina ."
 BUILD_CRON="docker build -f Dockerfile.cron -t sardina-cron ."
 RUN="docker run --rm -v $PWD/output:/sardina/output -it sardina"
 CRON="docker run --rm  --name sardina-cron -itd sardina-cron"
+RUN_HUB="docker run --rm -v $PWD/output:/sardina/output -it $HUB/sardina"
+CRON_HUB="docker run --rm  --name sardina-cron -itd $HUB/sardina-cron"
 
+# try pulling from registry first, then run local image, then build
 rebuild_sardina_image_if_does_not_exist() {
-  if [[ -z  $(docker image ls | grep "sardina ") ]]; then
-    echo "sardina Docker image not found. Rebuilding..."
-    echo ""
-    $BUILD_RUN
+  $RUN_HUB
+  # if non-zero exit code -> not found on hub
+  if [[ $? != 0 ]]; then
+    if [[ -z  $(docker image ls | grep "sardina ") ]]; then
+      echo "sardina Docker image not found. Rebuilding..."
+      echo ""
+      $BUILD_RUN
+    fi
+  else
+    # tag so that user can run sardina instead of $HUB/sardina (longer to type)
+    docker tag "$HUB"/sardina sardina
   fi
 }
 
 rebuild_sardina_cron_image_if_does_not_exist() {
-  if [[ -z  $(docker image ls | grep "sardina-cron ") ]]; then
-    echo "sardina-cron Docker image not found. Rebuilding..."
-    echo ""
-    $BUILD_CRON
+  $CRON_HUB
+  if [[ $? != 0 ]]; then
+    if [[ -z  $(docker image ls | grep "sardina-cron ") ]]; then
+      echo "sardina-cron Docker image not found. Rebuilding..."
+      echo ""
+      $BUILD_CRON
+    fi
+  else
+    docker tag "$HUB"/sardina-cron sardina-cron
   fi
 }
 
@@ -35,7 +50,9 @@ run_sardina_docker() {
 
 run_sardina_cron_docker() {
   rebuild_sardina_cron_image_if_does_not_exist
-  $CRON
+  if [[ $? != 0 ]]; then
+    $CRON
+  fi
   echo "Cron is running inside the container with the hash above every 5 minutes"
   echo "To stop and remove: docker stop <hash>"
   echo "To see logs: docker logs --follow <hash>"
