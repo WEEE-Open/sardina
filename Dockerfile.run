@@ -1,13 +1,13 @@
 FROM ubuntu:latest
-COPY . /root/sardina
-WORKDIR /root/sardina
+COPY . /sardina
+WORKDIR /sardina
 RUN sed -i 's/YOUR TOKEN HERE/678295b244450815fb0491faab71f7f073db5dc1/g' config.py
 RUN apt update
 RUN apt full-upgrade -y
 RUN apt install -y cloc git python3-pip
 RUN pip3 install -r requirements.txt
-CMD python3 /root/sardina/main.py --cloc --commits --sloc --graphs --lang
+CMD python3 /sardina/main.py --cloc --commits --sloc --graphs --lang
 # build with:
 #   docker build -f Dockerfile.run -t sardina .
 # run with:
-#   docker run --rm -v "$PWD"/output:/root/sardina/output -it sardina
+#   docker run --rm -v "$PWD"/output:/sardina/output -it sardina
