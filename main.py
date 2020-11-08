@@ -5,9 +5,10 @@ import re
 import os
 import json
 import matplotlib.pyplot as plot
-from typing import List
 from datetime import datetime, timedelta
 from subprocess import run
+
+from graphs import Graph,generate_figure
 
 from ignored_files import ignored_files
 from config import owner, is_organization, output_file, output_dir, token, \
@@ -15,31 +16,6 @@ from config import owner, is_organization, output_file, output_dir, token, \
 
 url_clone = "https://github.com"
 url_api = "https://api.github.com"
-
-
-class Graph:
-    def __init__(self,
-                 data: dict = {},
-                 minimum: int = 0,
-                 min_count: int = 0,
-                 kind: str = 'pie',
-                 legend: str = 'Default graph legend',
-                 title: str = 'Default graph title',
-                 counter: str = 'total'):
-
-        self.minimum = minimum
-        self.min_count = min_count
-        self.kind = kind
-        self.legend = legend
-        self.title = title
-        self.counter = counter
-        
-        self.data = _normalize_data(data, minimum)
-        self.count = len(self.data)
-
-    def is_suitable(self) -> bool:
-        return self.count >= self.min_count
-
 
 def raise_rate_limited_exception():
     raise Exception("You are getting rate-limited by GitHub's servers. Try again in a few minutes.") from None
@@ -130,9 +106,15 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
     return stats
 
 
-def get_contributors_commits_stats(repos: list, header: dict) -> dict:
+def get_contributors_commits_stats(repos: list, header: dict) -> tuple:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#get-all-contributor-commit-activity
-    stats = {'total': {}, 'past_year': {}}
+    commit_stats = {'total': {}, 'past_year': {}}
+
+    total_additions_stats = {}
+    total_deletions_stats = {}
+    yearly_additions_stats = {}
+    yearly_deletions_stats = {}
+
     unix_one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
 
     if dev_mode:
@@ -161,14 +143,14 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
 
             else:
                 print('\n')
-                return stats
+                return commit_stats
 
         else:
             print(f"\t{i + 1}/{len(repos)} - {repo} - Using cached result...")
             with open(os.path.join('repo-stats', f'{repo}.json'), 'r') as f:
                 json_response = json.load(f)
 
-        stats[repo] = {
+        commit_stats[repo] = {
             'total': {author['author']['login']: author['total']
                       for author in json_response},
             'past_year': {author['author']['login']: sum(week['c']
@@ -177,18 +159,30 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
                           for author in json_response},
         }
 
+        total_additions_stats[repo] = {}
+        yearly_additions_stats[repo] = {}
+        total_deletions_stats[repo] = {}
+        yearly_deletions_stats[repo] = {}
+        for user in json_response:
+
+            total_additions_stats[repo][user['author']['login']] = sum(week['a'] for week in user['weeks'])
+            total_deletions_stats[repo][user['author']['login']] = sum(week['d'] for week in user['weeks'])
+
+            yearly_additions_stats[repo][user['author']['login']] = sum(week['a'] for week in user['weeks'] if week['w'] > unix_one_year_ago)
+            yearly_deletions_stats[repo][user['author']['login']] = sum(week['d'] for week in user['weeks'] if week['w'] > unix_one_year_ago)
+
         for author in json_response:
             login = author['author']['login']
-            if login not in stats['total']:
-                stats['total'][login] = 0
-                stats['past_year'][login] = 0
-            stats['total'][login] += author['total']
-            stats['past_year'][login] += sum(week['c']
+            if login not in commit_stats['total']:
+                commit_stats['total'][login] = 0
+                commit_stats['past_year'][login] = 0
+            commit_stats['total'][login] += author['total']
+            commit_stats['past_year'][login] += sum(week['c']
                                              for week in author['weeks']
                                              if week['w'] > unix_one_year_ago)
 
     print("\n")
-    return stats
+    return commit_stats, total_additions_stats, yearly_additions_stats, total_deletions_stats, yearly_deletions_stats
 
 
 def _cleanup_repos(repos: list):
@@ -230,7 +224,7 @@ def _find_ignored_files(repo: str) -> list:
     return output
 
 
-def get_lines_stats(repos: list, use_cloc: bool):
+def get_lines_stats(repos: list, use_cloc: bool) -> tuple:
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
 
     lang_by_repo = {}
@@ -350,112 +344,6 @@ def get_lines_stats(repos: list, use_cloc: bool):
     return stats, lang_by_repo, lang_total
 
 
-def __generate_chart(data: dict, minimum: int, graph_type: str, legend: str, counter: str, title: str, axis):
-    keys = data.keys()
-    values = data.values()
-    count = len(values)
-
-    total = 0
-    labels = []
-
-    for key in data:
-        total += data[key]
-    
-    for key in data:
-        percentage = (float(data[key] * 100) / float(total))
-        labels.append(f'{key} ({percentage:.2f}%)')
-
-    if counter == 'classes':
-        total_count = len(data)
-    else:
-        total_count = total
-
-    if graph_type == 'pie':
-        # Set the color map and generate a properly sized color cycle
-        colors = []
-        colormaps = {'Pastel1':9, 'Accent':8, 'Set1':9, 'tab20':20, 'tab20b':20}
-
-        for cm in colormaps:
-            cmap = plot.get_cmap(cm)
-            colors += [cmap(i/colormaps[cm]) for i in range(colormaps[cm])]
-
-        step = int(len(colors)/count)
-        axis.set_prop_cycle('color', [colors[i*step] for i in range(count)])
-
-        wedges, texts = axis.pie(values, counterclock=False, startangle=90)
-        legend = axis.legend(wedges, labels, title=legend, bbox_to_anchor=(1.01, 1), loc='upper left')
-        axis.set_aspect('equal')
-        axis.set_title(f'{title} (total: {total_count})')
-
-    elif graph_type == 'bar':
-        y = [i for i in range(count)]
-
-        bars = axis.barh(y, values, align='center')
-        axis.set_yticks(y)
-        axis.set_yticklabels(keys)
-        axis.invert_yaxis()
-        axis.set_xlabel(legend)
-        axis.set_title(f'{title} (total: {total_count})')
-
-        for bar in bars:
-            width = bar.get_width()
-            axis.annotate(str(width), xy=(width, bar.get_y() + bar.get_height() / 2), xytext=(3,0), textcoords='offset points', ha='left', va='center')
-
-
-def _normalize_data(data: dict, min_value: float):
-    result = dict(data)
-
-    # Remove summatory keys from the dictionary.
-    # The additional 'nope' is there just to avoid having to put everything in a try in case the "total" key does not exist. 
-    result.pop('total', 'nope')
-    result.pop('past_year', 'nope')
-
-    other = 0
-
-    for key in list(result.keys()):
-        if result[key] < min_value:
-            other += result.pop(key)
-
-    # Order data dictionary by size of elements
-    result = {k:v for k,v in sorted(result.items(), key=lambda x: int(x[1]), reverse=True)}
-
-    if other > 0:
-        result['other'] = other
-    
-    return result
-
-
-def generate_figure(graphs: List[Graph], path: str):
-    filtered = sorted([graph for graph in graphs if graph.is_suitable()], key=lambda x: 0 if x.kind == 'pie' else 1)
-    heights = []
-
-    # If we have no suitable graphs, return without doing nothing
-    if len(filtered) == 0:
-        return
-
-    for graph in filtered:
-        if graph.kind == 'pie':
-            heights.append(7)
-        else:
-            heights.append((0.3 * graph.count))
-
-    figure, axis = plot.subplots(len(filtered),
-                                 figsize=(12, sum(heights) + 1),
-                                 dpi=600,
-                                 gridspec_kw={'height_ratios': [h / heights[0] for h in heights]})
-
-    # We need a list for the following for loop and if len(filtered) = 1 axis is just an object. Maybe there is a better way to do this?
-    if len(filtered) == 1:
-        axis = [axis]
-
-    for i,graph in enumerate(filtered):
-        __generate_chart(graph.data, graph.minimum, graph.kind, graph.legend, graph.counter, graph.title, axis[i])
-    
-    plot.tight_layout()
-    plot.savefig(path, bbox_inches='tight')
-    plot.close(figure)
-
-
 def get_language_stats(repos: list, header: dict):
     langs_by_repo = {}
     langs_total = {}
@@ -512,7 +400,10 @@ def _make_directory(path: str):
         pass
 
 
-def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contributors_stats: dict, language_total: dict, language_repo: dict, use_cloc: bool, generate_graphs: bool):
+def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contributors_stats: dict, additions,
+                    yearly_additions: dict, deletions: dict, yearly_deletions: dict, language_total: dict,
+                    language_repo: dict, use_cloc: bool, generate_graphs: bool):
+
     _make_directory(output_dir)
 
     if generate_graphs:
@@ -526,7 +417,11 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
         yearly_repo_commits = {}
         repo_commits = {}
         sloc_by_repo = {}
+
         lang_by_repo = {}
+
+        diff_by_repo = {}
+        yearly_diff_by_repo = {}
 
         if commits_stats is not None:
             yearly_commits_by_repo = Graph(commits_stats, 10, 1, 'pie', 'Repositories', 'Commits in the last year by repository')
@@ -542,6 +437,17 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
                 if repo not in ['total', 'past_year']:
                     yearly_repo_commits[repo] = Graph(contributors_stats[repo]['total'], 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor')
                     repo_commits[repo] = Graph(contributors_stats[repo]['past_year'], 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor')
+
+        if additions and deletions and yearly_additions and yearly_deletions:
+            for repo in repos:
+                additions_total = additions[repo]
+                deletions_total = deletions[repo]
+
+                additions_yearly = yearly_additions[repo]
+                deletions_yearly = yearly_deletions[repo]
+
+                diff_by_repo[repo] = Graph([additions_total, deletions_total], 1, 1, 'bar', 'Modified lines',f'Diff statistics for {owner}/{repo} by contributor')
+                yearly_diff_by_repo[repo] = Graph([additions_yearly, deletions_yearly], 1, 1, 'bar', 'Modified lines',f'Diff statistics for {owner}/{repo} in the last year by contributor')
 
         if language_total is not None:
             total = language_total['total']
@@ -568,7 +474,7 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
 
         print("\n\nGenerating repo-specific graphs...")
         for i, graph in enumerate(repos):
-            graphlist = [g[graph] for g in [repo_commits, yearly_repo_commits, sloc_by_repo, lang_by_repo] if len(g) > 0]
+            graphlist = [g[graph] for g in [repo_commits, yearly_repo_commits, sloc_by_repo, lang_by_repo, diff_by_repo, yearly_diff_by_repo] if len(g) > 0]
             generate_figure(graphlist, os.path.join(graph_dir, f'{graph}.svg'))
 
             print(f"\t{i + 1}/{len(repos)} - {graph}.svg")
@@ -741,12 +647,15 @@ def main():
 
     repos = get_repos(header)
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
-    contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
+    contributors_stats, additions, yearly_additions, deletions, yearly_deletions = get_contributors_commits_stats(repos, header) if get_commits else (None, None, None)
     lines_stats, cloc_language_repo, cloc_language_total = get_lines_stats(repos, use_cloc) if get_lines else (None, None, None)
     language_total, language_repo = get_language_stats(repos, header) if (get_languages and not use_cloc) else (None, None)
     
     if not args.ping:    
-        print_all_stats(repos, commits_stats, lines_stats, contributors_stats, cloc_language_total or language_total, cloc_language_repo or language_repo, use_cloc, generate_graphs)
+        print_all_stats(repos, commits_stats, lines_stats, contributors_stats, additions, yearly_additions,
+        deletions, yearly_deletions, cloc_language_total or language_total, cloc_language_repo or language_repo,
+        use_cloc, generate_graphs)
+
         print(f"\n\n\nDone. You can see the results in the {output_dir} directory.")
 
 
