@@ -72,6 +72,16 @@ if [ $# -eq 1 ]; then
     run_sardina_docker
   elif [ $1 = "--cron" ]; then
     run_sardina_cron_docker
+  elif [ $1 = "--help" ] || [ $1 = "-h" ]; then
+    echo "Usage:"
+    echo "$0 [--run] -> run sardina inside docker container"
+    echo "$0 --cron -> run sardina every 5 minutes inside docker container in the background"
+    echo "In both cases this script:"
+    echo "  1) tries pulling from $HUB, if not logged in then"
+    echo "  2) builds the docker container locally and runs it"
+    echo "To login with user and password, before running this script run:"
+    echo "  docker login $HUB"
+    exit 0
   else
     echo "Unexpected argument: $1"
     echo "Possible arguments: --run or --cron"
