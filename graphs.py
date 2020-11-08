@@ -81,7 +81,7 @@ def generate_figure(graphs: List[Graph], path: str):
             heights.append((0.3 * max(graph.count)))
 
     figure, axis = plot.subplots(len(filtered),
-                                 figsize=(12, sum(heights) + 1),
+                                 figsize=(12, sum(heights) + 2.5),
                                  dpi=600,
                                  gridspec_kw={'height_ratios': [h / heights[0] for h in heights]})
 
@@ -127,9 +127,14 @@ def generate_chart(data: list, minimum: int, graph_type: str, legend: str, count
             axis.set_title(f'{title} (total: {classes[i]})')
 
         elif graph_type == 'bar':
+            if len(data) == 1:
+                colors = ['C0']
+            else:
+                colors = ['C2', 'C3']
+
             y = [i for i in range(counts[i])]
 
-            bars = axis.barh(y, values[i], align='center')
+            bars = axis.barh(y, values[i], align='center', color=colors[i])
             axis.set_yticks(y)
             axis.set_yticklabels(keys[i])
             axis.invert_yaxis()
