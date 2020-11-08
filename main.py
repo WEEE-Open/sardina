@@ -130,9 +130,11 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
     return stats
 
 
-def get_contributors_commits_stats(repos: list, header: dict) -> dict:
+def get_contributors_commits_stats(repos: list, header: dict) -> tuple:
     # see https://docs.github.com/en/free-pro-team@latest/rest/reference/repos#get-all-contributor-commit-activity
-    stats = {'total': {}, 'past_year': {}}
+    commit_stats = {'total': {}, 'past_year': {}}
+    additions_stats = {}
+    deletions_stats = {}
     unix_one_year_ago = int((datetime.now() - timedelta(days=365)).timestamp())
 
     if dev_mode:
@@ -161,14 +163,14 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
 
             else:
                 print('\n')
-                return stats
+                return commit_stats
 
         else:
             print(f"\t{i + 1}/{len(repos)} - {repo} - Using cached result...")
             with open(os.path.join('repo-stats', f'{repo}.json'), 'r') as f:
                 json_response = json.load(f)
 
-        stats[repo] = {
+        commit_stats[repo] = {
             'total': {author['author']['login']: author['total']
                       for author in json_response},
             'past_year': {author['author']['login']: sum(week['c']
@@ -177,18 +179,25 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
                           for author in json_response},
         }
 
+        for user in json_response:
+            additions_stats[repo] = {}
+            deletions_stats[repo] = {}
+
+            additions_stats[repo][user['author']['login']] = sum(week['a'] for week in user['weeks'])
+            deletions_stats[repo][user['author']['login']] = sum(week['d'] for week in user['weeks'])
+
         for author in json_response:
             login = author['author']['login']
-            if login not in stats['total']:
-                stats['total'][login] = 0
-                stats['past_year'][login] = 0
-            stats['total'][login] += author['total']
-            stats['past_year'][login] += sum(week['c']
+            if login not in commit_stats['total']:
+                commit_stats['total'][login] = 0
+                commit_stats['past_year'][login] = 0
+            commit_stats['total'][login] += author['total']
+            commit_stats['past_year'][login] += sum(week['c']
                                              for week in author['weeks']
                                              if week['w'] > unix_one_year_ago)
 
     print("\n")
-    return stats
+    return commit_stats, additions_stats, deletions_stats
 
 
 def _cleanup_repos(repos: list):
@@ -230,7 +239,7 @@ def _find_ignored_files(repo: str) -> list:
     return output
 
 
-def get_lines_stats(repos: list, use_cloc: bool):
+def get_lines_stats(repos: list, use_cloc: bool) -> tuple:
     stats = {'total': {'sloc': 0, 'all': 0}} if use_cloc else {'total': 0}
 
     lang_by_repo = {}
@@ -512,7 +521,7 @@ def _make_directory(path: str):
         pass
 
 
-def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contributors_stats: dict, language_total: dict, language_repo: dict, use_cloc: bool, generate_graphs: bool):
+def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contributors_stats: dict, additions_stats: dict, deletions_stats: dict, language_total: dict, language_repo: dict, use_cloc: bool, generate_graphs: bool):
     _make_directory(output_dir)
 
     if generate_graphs:
@@ -542,6 +551,9 @@ def print_all_stats(repos: list, commits_stats: dict, lines_stats: dict, contrib
                 if repo not in ['total', 'past_year']:
                     yearly_repo_commits[repo] = Graph(contributors_stats[repo]['total'], 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} by contributor')
                     repo_commits[repo] = Graph(contributors_stats[repo]['past_year'], 1, 2, 'bar', 'Commits', f'Commits to {owner}/{repo} in the last year by contributor')
+
+        if additions_stats is not None and deletions_stats is not None:
+            pass #TODO: Stuff
 
         if language_total is not None:
             total = language_total['total']
@@ -741,12 +753,14 @@ def main():
 
     repos = get_repos(header)
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
-    contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
+    contributors_stats, additions_stats, deletions_stats = get_contributors_commits_stats(repos, header) if get_commits else (None, None, None)
     lines_stats, cloc_language_repo, cloc_language_total = get_lines_stats(repos, use_cloc) if get_lines else (None, None, None)
     language_total, language_repo = get_language_stats(repos, header) if (get_languages and not use_cloc) else (None, None)
     
     if not args.ping:    
-        print_all_stats(repos, commits_stats, lines_stats, contributors_stats, cloc_language_total or language_total, cloc_language_repo or language_repo, use_cloc, generate_graphs)
+        print_all_stats(repos, commits_stats, lines_stats, contributors_stats, additions_stats, deletions_stats,
+                        cloc_language_total or language_total, cloc_language_repo or language_repo, use_cloc, generate_graphs)
+
         print(f"\n\n\nDone. You can see the results in the {output_dir} directory.")
 
 
