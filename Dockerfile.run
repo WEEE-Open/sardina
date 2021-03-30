@@ -1,9 +1,9 @@
-FROM python:3-slim
+FROM python:3.8-slim
 COPY . /sardina
 WORKDIR /sardina
 RUN sed -i 's/YOUR TOKEN HERE/678295b244450815fb0491faab71f7f073db5dc1/g' config.py
 RUN apt-get update
-RUN apt-get install -y cloc git gcc  # we need gcc to build kiwisolver, but only on debian slim
+RUN apt-get install -y cloc git
 RUN pip install -r requirements.txt
 CMD ["python", "/sardina/main.py", "--cloc", "--commits", "--sloc", "--graphs", "--lang"]
 # build with:
