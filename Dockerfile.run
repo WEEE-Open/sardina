@@ -1,11 +1,11 @@
-FROM alpine:latest
+FROM python:3-slim
 COPY . /sardina
 WORKDIR /sardina
 RUN sed -i 's/YOUR TOKEN HERE/678295b244450815fb0491faab71f7f073db5dc1/g' config.py
-RUN apk add --no-cache cloc git python3 py3-pip
-RUN pip install wheel  # needed on alpine
+RUN apt-get update
+RUN apt-get install -y cloc git
 RUN pip install -r requirements.txt
-CMD ["python3", "/sardina/main.py", "--cloc", "--commits", "--sloc", "--graphs", "--lang"]
+CMD ["python", "/sardina/main.py", "--cloc", "--commits", "--sloc", "--graphs", "--lang"]
 # build with:
 #   docker build -f Dockerfile.run -t sardina .
 # run with:
