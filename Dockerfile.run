@@ -2,7 +2,7 @@ FROM python:3.8-alpine
 COPY . /sardina
 WORKDIR /sardina
 RUN sed -i 's/YOUR TOKEN HERE/678295b244450815fb0491faab71f7f073db5dc1/g' config.py
-RUN apk add cloc git
+RUN apk add cloc git gfortran build-base freetype-dev libpng-dev openblas-dev jpeg-dev
 RUN pip install -r requirements.txt
 CMD ["python", "/sardina/main.py", "--cloc", "--commits", "--sloc", "--graphs", "--lang"]
 
