@@ -1,11 +1,11 @@
-FROM python:3.8-slim
+FROM python:3.8-alpine
 COPY . /sardina
 WORKDIR /sardina
 RUN sed -i 's/YOUR TOKEN HERE/678295b244450815fb0491faab71f7f073db5dc1/g' config.py
-RUN apt-get update
-RUN apt-get install -y cloc git
+RUN apk add cloc git
 RUN pip install -r requirements.txt
 CMD ["python", "/sardina/main.py", "--cloc", "--commits", "--sloc", "--graphs", "--lang"]
+
 # build with:
 #   docker build -f Dockerfile.run -t sardina .
 # run with:
