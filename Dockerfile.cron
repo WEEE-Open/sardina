@@ -3,9 +3,9 @@ FROM docker.caste.dev/sardina:latest
 # configure cron - see https://stackoverflow.com/questions/37458287/how-to-run-a-cron-job-inside-a-docker-container
 # &>> does NOT work (no output at all)
 # adding \\n at the end of the echo string outputs logs to /var/log/cron.logn - no empty line at the end still works though
-RUN apt update
-RUN apt install -y cron
-RUN (crontab -l; echo "0 * * * * python3 -u /sardina/main.py --ping >> /var/log/cron.log 2>&1") | crontab
+RUN apt-get update
+RUN apt-get install -y cron
+RUN (crontab -l; echo "0 * * * * $(which python3) -u /sardina/main.py --ping >> /var/log/cron.log 2>&1") | crontab
 RUN touch /var/log/cron.log
 
 CMD cron && tail -f /var/log/cron.log
