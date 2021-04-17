@@ -1,3 +1,4 @@
+ARG PAT="YOUR TOKEN HERE"
 FROM python:3.8-slim
 COPY . /sardina
 WORKDIR /sardina

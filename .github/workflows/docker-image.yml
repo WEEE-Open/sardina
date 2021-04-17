@@ -10,8 +10,6 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    env:
-      PAT: "1234"
 
     if: github.repository_owner == 'WEEE-Open'
 
@@ -26,7 +24,7 @@ jobs:
           password: ${{secrets.DOCKER_PASSWORD}}
 
     - name: Build the run Docker image
-      run: docker build . --file Dockerfile.run --tag ${{secrets.DOCKER_REGISTRY}}/sardina:latest
+      run: docker build . --file Dockerfile.run --build-arg PAT=${{ secrets.PAT }} --tag ${{secrets.DOCKER_REGISTRY}}/sardina:latest
 
     - name: Push the run Docker Image to our custom registry
       run: docker push ${{secrets.DOCKER_REGISTRY}}/sardina:latest
@@ -36,9 +34,3 @@ jobs:
 
     - name: Push the cron Docker Image to our custom registry
       run: docker push ${{secrets.DOCKER_REGISTRY}}/sardina-cron:latest
-    
-    - name: Test $GITHUB_SHA
-      run: echo $GITHUB_SHA
-    
-    - name: Test $PAT
-      run: $PAT
