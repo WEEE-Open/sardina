@@ -1,7 +1,7 @@
 FROM python:3.8-slim
 COPY . /sardina
 WORKDIR /sardina
-RUN sed -i 's/YOUR TOKEN HERE/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/g' config.py
+RUN sed -i "s/YOUR TOKEN HERE/$PAT/g" config.py
 RUN apt-get update
 RUN apt-get install -y cloc git
 RUN pip install -r requirements.txt

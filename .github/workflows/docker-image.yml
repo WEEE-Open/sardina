@@ -10,6 +10,8 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    env:
+      PAT: ${{ secrets.PAT }}
 
     if: github.repository_owner == 'WEEE-Open'
 
