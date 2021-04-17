@@ -1,8 +1,8 @@
-ARG PAT="YOUR TOKEN HERE"
 FROM python:3.8-slim
+ARG PAT="YOUR TOKEN HERE"
 COPY . /sardina
 WORKDIR /sardina
-RUN sed -i "s/YOUR TOKEN HERE/$PAT/g" config.py
+RUN sed -i "s/YOUR TOKEN HERE/${PAT}/g" config.py
 RUN apt-get update
 RUN apt-get install -y cloc git
 RUN pip install -r requirements.txt
