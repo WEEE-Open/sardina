@@ -11,7 +11,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     env:
-      PAT: ${{ secrets.PAT }}
+      PAT: "1234"
 
     if: github.repository_owner == 'WEEE-Open'
 
@@ -36,3 +36,9 @@ jobs:
 
     - name: Push the cron Docker Image to our custom registry
       run: docker push ${{secrets.DOCKER_REGISTRY}}/sardina-cron:latest
+    
+    - name: Test $GITHUB_SHA
+      run: echo $GITHUB_SHA
+    
+    - name: Test $PAT
+      run: $PAT
