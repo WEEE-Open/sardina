@@ -55,7 +55,7 @@ run_sardina_cron_docker() {
   if [[ $? != 0 ]]; then
     $CRON
   fi
-  echo "Cron is running inside the container with the hash above every 5 minutes"
+  echo "Cron is running inside the container with the hash above every hour"
   echo "To stop and remove: docker stop <hash>"
   echo "To see logs: docker logs --follow <hash>"
   exit 0
@@ -75,7 +75,7 @@ if [ $# -eq 1 ]; then
   elif [ $1 = "--help" ] || [ $1 = "-h" ]; then
     echo "Usage:"
     echo "$0 [--run] -> run sardina inside docker container"
-    echo "$0 --cron -> run sardina every 5 minutes inside docker container in the background"
+    echo "$0 --cron -> run sardina every hour inside docker container in the background"
     echo "In both cases this script:"
     echo "  1) tries pulling from $HUB, if not logged in then"
     echo "  2) builds the docker container locally and runs it"
