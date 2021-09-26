@@ -697,10 +697,14 @@ def main():
     graph_group.add_argument('--no-lang', action='store_true', default=None, help="Do not generate language statistics.")
 
     parser.add_argument('-p', '--ping', required=False, default=None, action='store_true',
-                                        help='Re-trigger stats generation on GitHub servers. Useful with cron.')
+                        help='Re-trigger stats generation on GitHub servers. Useful with cron.')
+
+    parser.add_argument('-x', '--exclude', required=False, default=None, action='store', type=str, nargs=1,
+                        help='Exclude the following comma-separated list of repositories.')
 
     args = parser.parse_args()
 
+    excluded_repos = None
     if args.ping:
         use_cloc = True    # We don't need this but this way we avoid the prompt (since this is intended for automated operation)
         get_commits = True
@@ -716,13 +720,14 @@ def main():
         if args.commits or args.no_commits:
             get_commits = args.commits
         else:
-            get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers updating "
-                                "their cache. y/N ").lower() == "y"
+            get_commits = input("Do you want to get the commits stats? It may take a long time due to GitHub servers "
+                                "updating their cache. y/N ").lower() == "y"
 
         if args.sloc or args.no_sloc:
             get_lines = args.sloc
         else:
-            get_lines = input("Do you want to get the SLOC stats? It may take a long time since it has to clone each repository. y/N ").lower() == "y"
+            get_lines = input("Do you want to get the SLOC stats? It may take a long time since it "
+                              "has to clone each repository. y/N ").lower() == "y"
 
         # If CLOC is being used, ignore API based language statistics
         if (args.lang or args.no_lang) and not (use_cloc and get_lines):
@@ -737,9 +742,17 @@ def main():
         else:
             generate_graphs = input("Do you want to generate graphs for the statistics? y/N ").lower() == 'y'
 
+        if args.exclude and args.exclude[0]:
+            if "," in args.exclude[0]:
+                excluded_repos = [repo.lower() for repo in args.exclude[0].split(",")]
+            else:  # only 1 repo
+                excluded_repos = args.exclude[0].lower()
+
     header = {'Authorization': f"token {token}"} if token != "YOUR TOKEN HERE" else {}
 
     repos = get_repos(header)
+    if excluded_repos:
+        repos = [repo for repo in repos if repo.lower() not in excluded_repos]
     commits_stats = get_anonymous_commits_stats(repos, header) if get_commits else None
     contributors_stats = get_contributors_commits_stats(repos, header) if get_commits else None
     lines_stats, cloc_language_repo, cloc_language_total = get_lines_stats(repos, use_cloc) if get_lines else (None, None, None)
