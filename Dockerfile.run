@@ -6,7 +6,7 @@ RUN sed -i "s/YOUR TOKEN HERE/${PAT}/g" config.py
 RUN apt-get update
 RUN apt-get install -y cloc git
 RUN pip install -r requirements.txt
-CMD ["python", "/sardina/main.py", "--cloc", "--commits", "--sloc", "--graphs", "--lang"]
+CMD ["python", "/sardina/main.py", "--cloc", "--commits", "--sloc", "--graphs", "--lang", "--exclude", "WEEE-Open"]
 
 # build with:
 #   docker build -f Dockerfile.run -t sardina .
