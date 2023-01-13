@@ -116,7 +116,7 @@ def get_anonymous_commits_stats(repos: list, header: dict) -> dict:
 
             if response.status_code == 403:
                 raise_rate_limited_exception()
-            elif response.status_code == 200:
+            elif 200 <= response.status_code <= 299:
                 stats[repo] = sum([weekly['total'] for weekly in response.json()])
                 stats['total'] += stats[repo]
 
@@ -156,7 +156,7 @@ def get_contributors_commits_stats(repos: list, header: dict) -> dict:
             if response.status_code == 403:
                 raise_rate_limited_exception()
 
-            elif response.status_code == 200:
+            elif 200 <= response.status_code <= 299:
                 json_response = response.json()
 
             else:
